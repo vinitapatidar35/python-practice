@@ -11,3 +11,4 @@ print(age)
 
 #Hard-Coded Value: A value that is directly written in the program code and remains fixed.
 #Dynamic Value: A value that is provided or generated during program execution and can change each time the program runs.
+l

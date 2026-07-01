@@ -47,14 +47,18 @@ while True:
         break
 print('thank you for typing yes only')
 
-#The Golden Rule of while True
-#Never use a while True loop without a break statement attached to an if condition. 
-#If you forget it, your code will get stuck in a locked loop, freezing 
-#your terminal until you forcefully kill it (usually by hitting Ctrl + C).
-user="" 
-count = 0
+
+attempts = 0  
 while True:
-    user = input("type 1 only")
-    if count == 3:
-        break 
-print('you type 1 in 3 times good girl/boy')
+    answer = input("Do you agree? (yes/no): ")
+    attempts += 1  
+    
+    if answer == "yes":
+        print("Glad we are on the same page")
+        break
+        
+    if attempts == 3:
+        print("Maximum attempts reached.")
+        break
+
+print("Thank You")
