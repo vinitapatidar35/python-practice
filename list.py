@@ -64,8 +64,8 @@ print(name)
 # unpacking rule
 #1.no of variable must be matching
 #2.you can unpack any sequence (list , tuple , string etc)
-str = "hello"
-one,two,*other = str
+stri = "hello"
+one,two,*other = stri
 print(one)
 print(two)
 print(other)
@@ -268,4 +268,35 @@ for i in reversed(alph):
 
 # what is iterator obj like why we need to write list in front of that otherwise showing list_someiterator
 
+#map
+#map iterable object cahnge to list
+#map(transformation , iterable)
+alph = ['a','b','c','d']
+print(list(map(str.upper,alph))) # not update or modified original list
+
+num =["1","2","3","4","5"]
+print(list(map(int ,num )))
+
+#filter(function , iterable) return filter iterator object needs to change in list
+num_alph = ["vinita" , "hyee" , 980 , 678 , "876"]
+print(list(filter(lambda x : isinstance(x,str) and x.isalpha(), num_alph)))
+#None removes all falsy value 
+# bool works the same value it filter out all falsy avlue
+num = ["hyy" , "" , False , None ,"good morning"]
+print(list(filter(None, num)))
+
+num_alph = ["vinita" , "hyee" , "980" , "678" , "876"]
+print(list(filter(str.isalpha , num_alph)))
+
+for i in filter(str.isalpha , num_alph):
+    print(i)
+#isinstance(object, type)
+#object: The variable or data you want to test (e.g., your loop variable x).
+
+#type: The class data type you are checking for (e.g., str for string, int for integer
+x = "vinita"
+y = 980
+
+print(isinstance(x, str))  # Output: True  (Because "vinita" is text)
+print(isinstance(y, str))  # Output: False (Because 980 is an integer)
 
