@@ -1,14 +1,26 @@
-# input() is a built-in function used to take input from the user.
-# It always returns the input as a string.
-# Use int(), float(), etc. to convert input to other data types.
+"""
+input.py
 
-name = input("Type your name:")
-print(f"my name is {name}")
+Covers:
+- input() function basics - always returns a string
+- Type casting user input to int/float
+- Using input() with an f-string for output
+- Multiple inputs taken one after another
+"""
 
-age = int(input("Type your Age: "))
-age = age + 10
-print(age)
+name = input("Enter your name: ")
+print("Hello,", name)
 
-#Hard-Coded Value: A value that is directly written in the program code and remains fixed.
-#Dynamic Value: A value that is provided or generated during program execution and can change each time the program runs.
-l
+age = input("Enter your age: ")
+print(type(age))
+
+age = int(age)
+print(type(age))
+print(f"Next year you will be {age + 1} years old")
+
+height = float(input("Enter your height in meters: "))
+print(f"Your height is {height} m")
+
+city = input("Enter your city: ")
+country = input("Enter your country: ")
+print(f"{name} lives in {city}, {country}")

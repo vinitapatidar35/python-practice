@@ -1,98 +1,75 @@
-# ==============================================================================
-# PYTHON STRING DATA TYPE: COMPLETE REFERENCE NOTES
-# ==============================================================================
+"""
+string.py
 
-# THE GOLDEN RULE OF STRINGS:
-# Strings are IMMUTABLE. Once a string is created in memory, it CANNOT be altered.
-# Any method that "modifies" a string actually returns a BRAND NEW string object.
+Covers:
+- String immutability (methods return new strings, originals unchanged)
+- Case conversion: upper, lower, title, capitalize, swapcase
+- Cleanup: strip, lstrip, rstrip
+- Substring replacement: replace
+- Searching/counting: count, find, index
+- Validation methods: isdigit, isalpha, isalnum, startswith, endswith
+- Structural conversion: split, join
+- Membership check with 'in', type(), string-int conversion, string repetition
+"""
 
-# ------------------------------------------------------------------------------
-# 1. THE IMMUTABILITY DEMONSTRATION (CRITICAL CONCEPT)
-# ------------------------------------------------------------------------------
 original_text = "iitm"
-original_text.upper()  # You called the method, but didn't save the output!
+original_text.upper()
 
-print("1. Immutability Check:", original_text)  
-# Output: "iitm" -> The real string DID NOT change!
+print("1. Immutability Check:", original_text)
 
-# To actually update the variable, you must explicitly re-assign it:
 original_text = original_text.upper()
-print("2. After Re-assignment:", original_text)  
-# Output: "IITM" -> Now the variable points to the new modified version.
+print("2. After Re-assignment:", original_text)
 
 
-# ------------------------------------------------------------------------------
-# 2. CASE CONVERSION METHODS
-# ------------------------------------------------------------------------------
 sample = "learn PYTHON coding"
 
-print(sample.upper())       # "LEARN PYTHON CODING" -> Converts all to uppercase
-print(sample.lower())       # "learn python coding" -> Converts all to lowercase
-print(sample.title())       # "Learn Python Coding" -> Capitalizes first letter of each word
-print(sample.capitalize())  # "Learn python coding" -> Capitalizes ONLY the very first character
-print(sample.swapcase())    # "LEARN python CODING" -> Inverts case of every character
+print(sample.upper())
+print(sample.lower())
+print(sample.title())
+print(sample.capitalize())
+print(sample.swapcase())
 
 
-# ------------------------------------------------------------------------------
-# 3. CLEANUP & SUBSTRING REPLACEMENT
-# ------------------------------------------------------------------------------
 dirty_string = "   hello world   "
 
-# Removing white spaces
-print(dirty_string.strip())   # "hello world"  -> Removes spaces from BOTH ends
-print(dirty_string.lstrip())  # "hello world   " -> Removes spaces ONLY from left
-print(dirty_string.rstrip())  # "   hello world"  -> Removes spaces ONLY from right
+print(dirty_string.strip())
+print(dirty_string.lstrip())
+print(dirty_string.rstrip())
 
-# Replacing characters
 msg = "apple bapple capple"
-print(msg.replace("apple", "mango")) # "mango bmango cmango" -> Swaps all occurrences
+print(msg.replace("apple", "mango"))
 
 
-# ------------------------------------------------------------------------------
-# 4. SEARCHING, COUNTING & POSITION INDEXING
-# ------------------------------------------------------------------------------
 sentence = "python is fun and python is fast"
 
-print(sentence.count("python"))  # Output: 2  -> Counts how many times it appears
-print(sentence.find("is"))       # Output: 7  -> Returns lowest index where "is" starts
-print(sentence.find("java"))     # Output: -1 -> Returns -1 if substring is NOT found
+print(sentence.count("python"))
+print(sentence.find("is"))
+print(sentence.find("java"))
 
-# .index() works exactly like .find(), but with one major difference:
-print(sentence.index("is"))      # Output: 7
-# print(sentence.index("java"))  # ERROR! Throws a ValueError if substring is missing
+print(sentence.index("is"))
 
 
-# ------------------------------------------------------------------------------
-# 5. STRING VALIDATION METHODS (RETURNS True OR False)
-# ------------------------------------------------------------------------------
 val1 = "12345"
 val2 = "Python"
 val3 = "Python3"
 
-print(val1.isdigit())  # True  -> Checks if ALL characters are numbers
-print(val2.isalpha())  # True  -> Checks if ALL characters are letters
-print(val3.isalnum())  # True  -> Checks if characters are alphanumeric (letters/numbers)
+print(val1.isdigit())
+print(val2.isalpha())
+print(val3.isalnum())
 
 filename = "report.pdf"
-print(filename.startswith("rep")) # True -> Verifies prefix
-print(filename.endswith(".pdf"))   # True -> Verifies suffix
+print(filename.startswith("rep"))
+print(filename.endswith(".pdf"))
 
 
-# ------------------------------------------------------------------------------
-# 6. STRUCTURAL CONVERSION (SPLIT & JOIN)
-# ------------------------------------------------------------------------------
-# .split() converts a string into a LIST
 data_string = "apple,banana,orange"
-fruits_list = data_string.split(",") 
-print(fruits_list)  # Output: ['apple', 'banana', 'orange']
+fruits_list = data_string.split(",")
+print(fruits_list)
 
-# .join() converts a LIST back into a single string
 hobbies = ["Coding", "Reading", "Gaming"]
 joined_string = " - ".join(hobbies)
-print(joined_string)  # Output: "Coding - Reading - Gaming"
+print(joined_string)
 
-
-# some practice
 
 text = "   Hye i am BEAUTIFUL and KIND giRl   "
 print(text.upper())
@@ -116,3 +93,4 @@ message = "hyee girl you are great in all the aspects"
 print(message.count("e"))
 print(len(message))
 print("ha"*7)
+

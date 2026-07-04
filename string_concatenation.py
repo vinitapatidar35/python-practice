@@ -1,3 +1,11 @@
+"""
+string_concatenation.py
+
+Covers:
+- String concatenation using the + operator
+- String repetition using the * operator
+"""
+
 str1 = "hello"
 str2 = "vinita "
 str3 = str1 + " "+ str2

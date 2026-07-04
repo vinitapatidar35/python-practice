@@ -1,51 +1,60 @@
-# dictionaries data structure in python
+"""
+dictionaries.py
+
+Covers:
+- Dictionary basics: key-value pairs, unique keys, mutability
+- Accessing values via key vs .get() (with default fallback)
+- Membership checks with in / not in
+- View objects: keys(), values(), items()
+- Iterating over a dict (keys only, and with .items())
+- Adding, updating, removing entries
+- pop() with default value, popitem()
+- dict.fromkeys() to build a dict with a shared default value
+- Building a new dict with a for loop + condition
+- Dict comprehension with condition
+"""
+
 my_dict = {"a" : 1,
            "b" : 2,
            "c" : 5
            }
-print(my_dict) # ordered , no duplicate key must be unique
-print(my_dict['a']) # not indexed we can get output with the help of key value
-my_dict["c"] = 80 # mutable
+print(my_dict)
+print(my_dict['a'])
+my_dict["c"] = 80
 print(my_dict)
 
 user = {"id" : 1, "age" : 25 , "city" : "berlin"}
 user["name"] = 'Vinita'
-#print(user["role"]) when u are not sure about key python give us error so we use get
-print(user.get("name")) # if key available give us a value othrwise None
-print(user.get("name", "unknown")) # we can give alternatievly for None its unknown
+print(user.get("name"))
+print(user.get("name", "unknown"))
 
-# checks 
 print("age" in my_dict)
 print("name" in my_dict)
 print("name" not in my_dict)
 
-# view objects
-print(my_dict.keys()) # all the keys, list of keys
-print(my_dict.values()) # all teh values, list of values
-print(my_dict.items()) # all key value pair, lit of tuples
+print(my_dict.keys())
+print(my_dict.values())
+print(my_dict.items())
 
 for u in user:
-    print(u)# we get keys only
-    print(user[u]) # we get values
+    print(u)
+    print(user[u])
 
 for x, y in user.items():
     print(x , y)
 
-# add, remove,update
-user["dream"] = "stable and independent life" # add
+user["dream"] = "stable and independent life"
 print(user)
-user["age"] = 21 # update
+user["age"] = 21
 user.update({"country" : "Japan", "taste" : "sweet"})
 print(user)
 taste = user.pop("taste")
 print(taste)
 print(user)
 
-user.pop("salary", "not mentioned")# user.pop("salary") not a key breaking whole program give a error we need to define default value if key is notdefine
-user.popitem()# return and delete thhe most recent key value pair from the dictionary 
- 
- # fromkeys()
- #build a  dic where all keys get the same default value
+user.pop("salary", "not mentioned")
+user.popitem()
+
 new_dic = dict.fromkeys(["student name", "age" , "class" , "roll no."],"initiate empty")
 print(new_dic)
 new_dic = dict.fromkeys(["student name", "age" , "class" , "roll no."],0)

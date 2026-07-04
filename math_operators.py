@@ -1,85 +1,57 @@
-# ==============================================================================
-# MASTERING PYTHON MATHEMATICAL OPERATORS (FROM SCRATCH)
-# ==============================================================================
+"""
+math_operators.py
 
-# Let's set up two baseline variables to use for our examples
+Covers:
+- Basic arithmetic operators: +, -, *
+- True division (/) vs floor division (//)
+- Modulo (%) and exponentiation (**)
+- Operator precedence (PEMDAS/BODMAS)
+- Augmented assignment operators (+=, -=, *=)
+"""
+
 a = 15
 b = 4
 
-# ------------------------------------------------------------------------------
-# 1. BASIC ARITHMETIC OPERATORS
-# ------------------------------------------------------------------------------
-
-# Addition (+)
 total_sum = a + b
-print(f"Addition (15 + 4): {total_sum}")          # Output: 19
+print(f"Addition (15 + 4): {total_sum}")
 
-# Subtraction (-)
 difference = a - b
-print(f"Subtraction (15 - 4): {difference}")      # Output: 11
+print(f"Subtraction (15 - 4): {difference}")
 
-# Multiplication (*)
 product = a * b
-print(f"Multiplication (15 * 4): {product}")      # Output: 60
+print(f"Multiplication (15 * 4): {product}")
 
 
-# ------------------------------------------------------------------------------
-# 2. THE TWO TYPES OF DIVISION (CRITICAL CONCEPT)
-# ------------------------------------------------------------------------------
-
-# True Division (/) -> ALWAYS returns a float (decimal), even if it divides evenly!
 true_div = a / b
-print(f"True Division (15 / 4): {true_div}")      # Output: 3.75
-print(type(true_div))                             # <class 'float'>
+print(f"True Division (15 / 4): {true_div}")
+print(type(true_div))
 
-# Floor Division (//) -> Chops off the decimal entirely, rounding DOWN to an integer.
 floor_div = a // b
-print(f"Floor Division (15 // 4): {floor_div}")  # Output: 3 (Since 4 goes into 15 three whole times)
-print(type(floor_div))                            # <class 'int'>
+print(f"Floor Division (15 // 4): {floor_div}")
+print(type(floor_div))
 
 
-# ------------------------------------------------------------------------------
-# 3. MODULO (%) & EXPONENTIATION (**)
-# ------------------------------------------------------------------------------
-
-# Modulo (%) -> Returns ONLY the remainder left over after a division.
-# Think: 15 divided by 4 is 3, with a remainder of 3 (4 * 3 = 12, and 15 - 12 = 3).
 remainder = a % b
-print(f"Modulo/Remainder (15 % 4): {remainder}")  # Output: 3
+print(f"Modulo/Remainder (15 % 4): {remainder}")
 
-# Exponentiation (**) -> Raises a number to the power of another (a b)
 power_result = a ** 2
-print(f"Exponentiation (15 squared): {power_result}") # Output: 225
+print(f"Exponentiation (15 squared): {power_result}")
 
-
-# ------------------------------------------------------------------------------
-# 4. OPERATOR PRECEDENCE (PEMDAS / BODMAS)
-# ------------------------------------------------------------------------------
-# Just like algebra class, Python executes math operations in a strict order:
-# 1. Parentheses ()
-# 2. Exponents **
-# 3. Multiplication *, Division /, Floor Division //, Modulo % (Left to Right)
-# 4. Addition +, Subtraction - (Left to Right)
 
 calculation_1 = 5 + 3 * 2
-print(f"No Parentheses (5 + 3 * 2): {calculation_1}")     # Output: 11 (Multiplication happens first!)
+print(f"No Parentheses (5 + 3 * 2): {calculation_1}")
 
 calculation_2 = (5 + 3) * 2
-print(f"With Parentheses ((5 + 3) * 2): {calculation_2}") # Output: 16 (Parentheses happen first!)
+print(f"With Parentheses ((5 + 3) * 2): {calculation_2}")
 
-
-# ------------------------------------------------------------------------------
-# 5. SHORTCUT: AUGMENTED ASSIGNMENT OPERATORS
-# ------------------------------------------------------------------------------
-# If you want to update a variable using its own existing value, use these shortcuts:
 
 score = 100
 
-score += 5   # Equivalent to: score = score + 5
-print(f"Updated Score (+5): {score}")            # Output: 105
+score += 5
+print(f"Updated Score (+5): {score}")
 
-score -= 10  # Equivalent to: score = score - 10
-print(f"Updated Score (-10): {score}")           # Output: 95
+score -= 10
+print(f"Updated Score (-10): {score}")
 
-score *= 2   # Equivalent to: score = score * 2
-print(f"Updated Score (*2): {score}")            # Output: 190
+score *= 2
+print(f"Updated Score (*2): {score}")

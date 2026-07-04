@@ -1,5 +1,11 @@
-#f-strings (formatted string literals) are the modern, easiest, and fastest way to format and transform strings in Python.
-#By placing an f or F directly before your opening quote, you can inject variables, numbers, or even code expressions directly inside curly braces {}.
+"""
+f-string.py
+
+Covers:
+- f-strings (formatted string literals) basics
+- Injecting variables and expressions inside { }
+- Printing literal curly braces using {{ }}
+"""
 
 name = "vinita"
 age = 21

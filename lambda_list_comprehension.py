@@ -1,4 +1,17 @@
-#lambda function
+"""
+lambda_list_comprehension.py
+
+Covers:
+- Lambda functions (anonymous, single-expression functions)
+- Lambda with multiple parameters
+- Lambda with conditional/boolean expressions
+- Lambda combined with map()
+- Lambda combined with filter()
+- Filtering nested lists using a lambda accessing an index
+- List comprehension basics: [expression for item in iterable if condition]
+- Practical list comprehension: cleaning/transforming string data
+"""
+
 lst = [1,2,3,4,5]
 new = []
 ans = lambda x : x * 2
@@ -14,11 +27,9 @@ print(multiply(6))
 arith = lambda x , y , z : x + y - z
 print(arith(5,6,4))
 
-# lambda can contain any expresion , including conditions
 check = lambda i : i in "python"
 print(check("n"))
 
-# lambda + map
 dic = [("python", "hyeee")]
 result = (list(map(lambda item: item[0].isalpha() and item[1].isalpha() and isinstance(item[0],str) and  isinstance(item[1],str) , dic)))
 print(result)
@@ -40,7 +51,6 @@ lst1 = [["maria", 90],
 print(list(filter(lambda x : x[1] > 50, lst1)))
 print(list(filter(lambda x : x[0].startswith("m"), lst1)))
 
-# list comprehension
 price = [45,65,34,22,90]
 result = [p for p in price if p > 33]
 print(result)
