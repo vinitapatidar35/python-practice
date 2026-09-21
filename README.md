@@ -3,8 +3,8 @@
 Python practice — basics, OOP, and general exercises, part of my Data Engineering preparation.
 
 ## Structure
-- `basics/` — Python fundamentals (see Basics section below)
-- `oops/` — Object-Oriented Programming practice
+- `basics/` — Python fundamentals (variables, loops, functions, data types, strings)
+- `oops/` — Object-Oriented Programming practice (classes, objects)
 - `practice/` — General practice exercises
 
 ---
@@ -13,10 +13,10 @@ Python practice — basics, OOP, and general exercises, part of my Data Engineer
 
 Start with **basics/python_learn.py** for complete notes, then explore the individual topic files.
 
-### 📖 Core Notes
+### Core Notes
 - [basics/python_learn.py](./basics/python_learn.py) — Complete beginner notes (recommended starting point)
 
-### 🛠️ Practice Scripts
+### Practice Scripts
 - [basics/print.py](./basics/print.py) — Printing & Comments  
 - [basics/variable.py](./basics/variable.py) — Variables  
 - [basics/input.py](./basics/input.py) — User Input  
@@ -41,6 +41,25 @@ Start with **basics/python_learn.py** for complete notes, then explore the indiv
 - [basics/function_.py](./basics/function_.py) — Functions  
 - [basics/f-string.py](./basics/f-string.py) — f-Strings  
 - [basics/type_validation_notes.py](./basics/type_validation_notes.py) — Type Validation Notes  
+
+---
+
+## 🧩 OOPs
+- [oops/car.py](./oops/car.py)  
+- [oops/main.py](./oops/main.py)  
+- [oops/students.py](./oops/students.py)  
+
+---
+
+## 🛠️ Practice
+- [practice/practice_que1.py](./practice/practice_que1.py)  
+- [practice/practice_que2.py](./practice/practice_que2.py)  
+- [practice/practice_ques4.py](./practice/practice_ques4.py)  
+- [practice/practice_ques5.py](./practice/practice_ques5.py)  
+- [practice/practice_ques6.py](./practice/practice_ques6.py)  
+- [practice/practice_ques7.py](./practice/practice_ques7.py)  
+- [practice/practice_ques8.py](./practice/practice_ques8.py)  
+- [practice/practice_ques9.py](./practice/practice_ques9.py)  
 
 ---
 
