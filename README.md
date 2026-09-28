@@ -1,11 +1,10 @@
 # Python Practice
 
-Python practice — basics, OOP, and general exercises, part of my Data Engineering preparation.
+Python practice — fundamentals and data analysis (NumPy, Pandas), part of my Data Engineering preparation.
 
 ## Structure
 - `basics/` — Python fundamentals (variables, loops, functions, data types, strings)
-- `oops/` — Object-Oriented Programming practice (classes, objects)
-- `practice/` — General practice exercises
+- `data-analysis/` — NumPy and Pandas notes and practice
 
 ---
 
@@ -43,25 +42,7 @@ Start with **basics/python_learn.py** for complete notes, then explore the indiv
 - [basics/type_validation_notes.py](./basics/type_validation_notes.py) — Type Validation Notes  
 
 ---
-
-## 🧩 OOPs
-- [oops/car.py](./oops/car.py)  
-- [oops/main.py](./oops/main.py)  
-- [oops/students.py](./oops/students.py)  
-
----
-
-## 🛠️ Practice
-- [practice/practice_que1.py](./practice/practice_que1.py)  
-- [practice/practice_que2.py](./practice/practice_que2.py)  
-- [practice/practice_ques4.py](./practice/practice_ques4.py)  
-- [practice/practice_ques5.py](./practice/practice_ques5.py)  
-- [practice/practice_ques6.py](./practice/practice_ques6.py)  
-- [practice/practice_ques7.py](./practice/practice_ques7.py)  
-- [practice/practice_ques8.py](./practice/practice_ques8.py)  
-- [practice/practice_ques9.py](./practice/practice_ques9.py)  
-
----
+  
 
 ## 🚀 How to Use
 1. Start with **basics/python_learn.py** to build your foundation.  
