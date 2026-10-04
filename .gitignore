@@ -1,0 +1,6 @@
+
+data-analysis/pandas/data/raw/*
+data-analysis/pandas/data/processed/*
+.ipynb_checkpoints/
+__pycache__/
+.venv/

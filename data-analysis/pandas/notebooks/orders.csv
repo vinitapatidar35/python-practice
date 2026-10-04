@@ -1,0 +1,9 @@
+order_id,customer,city,amount,items
+1001,Asha,Indore,1200,3
+1002,Vivek,Pune,,1
+1003,Ravi,Delhi,560,2
+1004,Meena,Indore,2300,
+1005,Kabir,Mumbai,150,1
+1006,Zoya,Pune,980,4
+1007,Arjun,Delhi,3100,5
+1008,Neha,Indore,450,2
