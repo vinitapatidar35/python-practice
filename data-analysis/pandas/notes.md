@@ -580,3 +580,150 @@ df["marks"].dtype     # type of one column
 
 Watch out: `df.dtypes()` fails ("'Series' object is not callable"); `df.dtype` fails (AttributeError); a number-looking column with `object` dtype usually has a stray text cell, so check `dtypes` before calculating.
 
+
+# Topic 3 — Indexes
+
+## What the index is
+
+The index is the set of row labels printed on the left of a table. It is not a data column.
+
+```python
+import pandas as pd
+students = pd.read_csv("students.csv")     # name, city, marks (4 rows)
+students.index                             # RangeIndex(start=0, stop=4, step=1)
+list(students.index)                       # [0, 1, 2, 3]
+```
+
+- `df.index` is an attribute (a fact), so no round brackets.
+- `RangeIndex` is the default: the numbers 0, 1, 2 ... added automatically.
+- The index is not counted in `shape` or `columns`: `(4, 3)` means 4 rows and 3 data columns.
+- Labels are names for rows; positions are the place in line. `iloc` uses positions, `loc` uses labels (Topic 2).
+
+## set_index: choose a column as the labels
+
+```python
+by_name = students.set_index("name")    # the name column becomes the row labels
+by_name
+```
+
+| name | city | marks |
+|---|---|---|
+| Asha | Indore | 82 |
+| Vivek | Pune | 91 |
+| Ravi | Delhi | 67 |
+| Meena | Indore | 75 |
+
+- It returns a new table; `students` itself is unchanged (save the result in a variable).
+- The column leaves `columns` and becomes the index: `by_name.shape` is `(4, 2)`.
+- The index gets a name, `by_name.index.name` is `'name'`, shown above the labels.
+- Use a column whose values identify rows (an id, a name) so a row can be looked up by that value.
+
+## loc with a custom index
+
+```python
+by_name.loc["Vivek"]              # the whole row for Vivek (Series)
+by_name.loc["Vivek", "marks"]     # one cell -> 91
+by_name.loc["Asha":"Ravi"]        # labels from Asha to Ravi, stop included (3 rows)
+by_name.iloc[0]                   # position still works -> Asha's row
+```
+
+- Once the labels are words, `loc` takes the words: `loc["Vivek"]`, not `loc[1]`.
+- `loc[1]` now gives `KeyError: 1`, because no label is the number 1.
+- Position still works with `iloc`; labels and positions are two separate systems.
+- A slice on labels follows the table order and includes the stop.
+- A label that does not exist gives KeyError (`by_name.loc["Rahul"]`).
+
+## reset_index: put the labels back
+
+```python
+restored = by_name.reset_index()               # name goes back to being a column
+renumbered = students.tail(2).reset_index(drop=True)   # labels 0, 1 again
+by_name.reset_index(drop=True)                 # labels gone, names LOST
+```
+
+| Code | Index becomes | Old index |
+|---|---|---|
+| `reset_index()` | 0, 1, 2 ... | returns as a column |
+| `reset_index(drop=True)` | 0, 1, 2 ... | thrown away |
+
+- `reset_index()` is the reverse of `set_index`.
+- After `tail(2)` the labels are 2 and 3; `reset_index(drop=True)` renumbers them 0 and 1.
+- Use `drop=True` only when the old labels are plain numbers you do not need.
+- With `drop=True` on `by_name`, the names are not kept anywhere.
+- It also returns a new table; save it.
+
+## sort_index: order by the labels
+
+```python
+by_name.sort_index()                    # labels A to Z
+by_name.sort_index(ascending=False)     # labels Z to A
+```
+
+- It sorts by the labels, not by a column (sorting by column values comes in Topic 7).
+- Numbers sort smallest first, words alphabetically (capitals before small letters).
+- It returns a new table; `ascending=False` reverses the order.
+- Sorting changes the row order only; each row keeps its own label.
+
+## Duplicate labels and index.name
+
+The index is not forced to be unique.
+
+```python
+orders = pd.read_csv("orders.csv")
+c = orders.set_index("city")
+c.loc["Indore"]               # several rows -> DataFrame (3 rows)
+c.loc["Mumbai"]               # one row -> Series
+c.loc["Indore", "amount"]     # Series of 3 values
+c.index.is_unique             # False
+o = orders.set_index("order_id")
+o.index.is_unique             # True
+o.index.name = "id"           # the index name can be changed
+```
+
+| Lookup | Result |
+|---|---|
+| label appears once | Series (one row) |
+| label appears many times | DataFrame (all matching rows) |
+| label missing | KeyError |
+
+- `loc` returns every row with that label, so the result type depends on the data.
+- `index.is_unique` answers True or False; check it before relying on a label to mean one row.
+- An index is like a primary key in a database, with one difference: pandas does not enforce uniqueness.
+- A good key column (order_id) is unique; a repeating column (city) is a poor key.
+- `index.name` is only a heading for the index; assign it directly (no brackets, an equals sign).
+
+## Quick reference
+
+| Goal | Code |
+|---|---|
+| see the labels | `df.index` |
+| a column becomes the labels | `df.set_index("name")` |
+| row by label | `df.loc["Vivek"]` |
+| labels back to a column | `df.reset_index()` |
+| fresh 0, 1, 2 labels, old ones dropped | `df.reset_index(drop=True)` |
+| order by labels | `df.sort_index()` |
+| reverse order | `df.sort_index(ascending=False)` |
+| are labels unique? | `df.index.is_unique` |
+| rename the index | `df.index.name = "id"` |
+
+## Remember
+
+- The index is the row labels; it is not a data column and is not counted in `shape`.
+- `set_index` moves a column into the labels; `reset_index` moves it back.
+- Every one of these returns a new table; the original does not change unless you save over it.
+- After `set_index`, use `loc` with the words and `iloc` with the positions.
+- `reset_index(drop=True)` renumbers from 0 after head, tail or cuts.
+- A label can repeat; one match gives a Series, many matches give a DataFrame.
+- Check `df.index.is_unique` before using a column as a key.
+
+## Watch out
+
+- `df.index()` fails; `index` is an attribute, no round brackets.
+- `set_index("name")` without saving does nothing lasting; write `by_name = ...`.
+- `by_name["name"]` gives KeyError; the column is now the index, not a column.
+- `by_name.loc[1]` gives KeyError; use the label (`"Vivek"`) or `iloc[1]`.
+- `reset_index(drop=True)` on a table whose labels matter loses them for good.
+- `reset_index()` without `drop=True` adds an `index` column when the old labels were plain numbers.
+- `c.loc["Indore"]` on repeated labels returns a DataFrame, so code expecting a single row breaks.
+- `sort_index()` sorts by labels; it does not sort a column such as marks.
+
