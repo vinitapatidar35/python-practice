@@ -727,3 +727,214 @@ o.index.name = "id"           # the index name can be changed
 - `c.loc["Indore"]` on repeated labels returns a DataFrame, so code expecting a single row breaks.
 - `sort_index()` sorts by labels; it does not sort a column such as marks.
 
+# Topic 4 — Filtering
+
+Filtering means keeping only the rows that pass a test. Two tables are used below: `students.csv` and `orders.csv`.
+
+| name | city | marks |
+|---|---|---|
+| Asha | Indore | 82 |
+| Vivek | Pune | 91 |
+| Ravi | Delhi | 67 |
+| Meena | Indore | 75 |
+
+`orders.csv` has the columns `order_id`, `customer`, `city`, `amount`, `items` (8 rows). Order 1002 has an empty `amount` and order 1004 has an empty `items`.
+
+```python
+import pandas as pd
+students = pd.read_csv("students.csv")
+orders = pd.read_csv("orders.csv")
+```
+
+## The mask
+
+```python
+mask = students["marks"] > 80     # True / False for every row
+students[mask]                    # keeps the rows where the mask is True -> Asha, Vivek
+students[students["marks"] > 80]  # same thing in one line
+```
+
+| marks | > 80 |
+|---|---|
+| 82 | True |
+| 91 | True |
+| 67 | False |
+| 75 | False |
+
+- A comparison on a column checks every row and gives a Series of True/False, called a mask.
+- The mask has one value per row, in the same order and with the same labels.
+- `df[mask]` keeps only the rows where the mask is True.
+- Comparison signs: `>`, `<`, `>=`, `<=`, `==` (equal), `!=` (not equal).
+- Filtering gives a new table; the original is unchanged.
+- Labels are kept (Vivek stays row 1); use `reset_index(drop=True)` for a fresh 0, 1, 2.
+- A single `=` assigns, `==` compares.
+- Comparing a text column with a number (`marks` stored as `object`) gives `TypeError: '>' not supported between instances of 'str' and 'int'`; check `df.dtypes` first.
+
+## Several conditions: `&`, `|`, `~`
+
+```python
+in_indore = students["city"] == "Indore"
+high = students["marks"] > 80
+
+students[in_indore & high]     # AND: both True -> Asha
+students[in_indore | high]     # OR: at least one True -> Asha, Vivek, Meena
+students[~in_indore]           # NOT: flips True/False -> Vivek, Ravi
+
+students[(students["city"] == "Indore") & (students["marks"] > 80)]   # one line
+```
+
+| Sign | Meaning | Row stays when |
+|---|---|---|
+| `&` | and | both True |
+| `\|` | or | at least one True |
+| `~` | not | the mask is False |
+
+- Each condition goes in its own round brackets inside one line. Without brackets `&` runs before `>` and the result is wrong or an error.
+- Wrong: `(df["a"]) > 1`. The bracket must hold the whole test: `(df["a"] > 1)`.
+- Python's words `and`, `or`, `not` do not work on masks (`ValueError: The truth value of a Series is ambiguous`).
+- A text comparison needs quotes and `==`; capitals must match exactly.
+- Named masks (`in_indore`, `high`) keep long filters readable.
+
+## isin and between
+
+```python
+students[students["city"].isin(["Pune", "Delhi"])]    # city is on the list -> Vivek, Ravi
+students[~students["city"].isin(["Pune", "Delhi"])]   # not on the list -> Asha, Meena
+students[students["marks"].between(75, 82)]           # 75 <= marks <= 82 -> Asha, Meena
+```
+
+- `isin([a, b, c])` is True where the value is any item in the list; the list is in square brackets.
+- It replaces a long chain of `==` joined with `|`.
+- `isin("Pune")` with a plain string fails (TypeError); use `isin(["Pune"])`.
+- `between(low, high)` includes both ends. It equals `(col >= low) & (col <= high)`.
+
+## Missing values: isna and notna
+
+```python
+orders["amount"].isna()          # True where the amount is empty (NaN)
+orders[orders["amount"].isna()]  # only order 1002
+orders["amount"].notna()         # opposite of isna
+orders["amount"].isna().sum()    # how many are missing -> 1
+orders.isna().sum()              # missing count for every column
+```
+
+- `isna()` is True for empty cells; `notna()` is True where a value is held. `notna()` equals `~isna()`.
+- `isna().sum()` counts the True values (True counts as 1).
+- `isnull()` and `notnull()` are other names for the same tools.
+- A comparison with NaN is always False: `NaN > 1000`, `NaN == 5` and `NaN < 5` are all False.
+- So `orders[~(orders["amount"] > 1000)]` also keeps order 1002 (amount empty), because `~False` is True.
+- To avoid it, add `notna()` to the same filter: `orders[orders["amount"].notna() & (orders["amount"] <= 1000)]`.
+- `df["col"] == None` and `df["col"] == np.nan` do not find empty cells; use `isna()`.
+
+## Text filters: the .str tools
+
+```python
+names = orders["customer"]
+names.str.startswith("A")            # Asha, Arjun
+names.str.endswith("a")              # Asha, Meena, Zoya, Neha
+names.str.contains("ee")             # Meena
+names.str.contains("a", case=False)  # ignore capitals
+names.str.len() == 4                 # 4-letter names
+orders["city"].str.lower() == "pune" # lower-case first, then compare
+```
+
+| Tool | True when |
+|---|---|
+| `str.startswith("A")` | text begins with A |
+| `str.endswith("a")` | text ends with a |
+| `str.contains("ee")` | "ee" appears anywhere |
+| `str.len()` | (gives a number) length of the text |
+| `str.lower()`, `str.upper()` | (gives text) changes the capitals |
+
+- Text tools sit behind `.str` and work on one column, not on the whole table.
+- Capitals matter: `contains("a")` does not find "Arjun"; add `case=False`.
+- `str.contains` reads its text as a pattern (regex); add `regex=False` for symbols such as `.` or `+`.
+- On a column holding NaN the result has NaN too and the filter fails with ValueError; add `na=False`.
+- `.str` on a number column gives `AttributeError: Can only use .str accessor with string values`.
+
+## query: a shorter filter
+
+```python
+orders.query("amount > 1000")                          # 1001, 1004, 1007
+orders.query('city == "Indore" and amount > 1000')     # 1001, 1004
+orders.query('city in ["Pune", "Delhi"]')              # 1002, 1003, 1006, 1007
+orders.query('not (city == "Indore")')
+
+limit = 500
+orders.query("amount > @limit")                        # @ uses a normal variable
+
+orders.query("amount.isna()")                          # empty amounts
+orders.query('customer.str.startswith("A")')           # text tools work too
+```
+
+- `query` takes the condition as one text string; column names are written plainly.
+- Use the words `and`, `or`, `not` inside it; `&` is also accepted. No extra brackets are needed.
+- A text value needs quotes inside the string; use single quotes outside and double inside.
+- `@name` uses a Python variable; a column name with a space needs backticks.
+- A wrong or wrongly capitalized column gives `UndefinedVariableError: name 'Amount' is not defined`; a column of another table gives the same error.
+- The result equals the mask way (`a.equals(b)` is True).
+- Use `query` for short readable filters; the mask way is more flexible.
+
+## loc with a mask: rows and columns together
+
+```python
+big = orders["amount"] > 1000
+
+orders.loc[big, "customer"]                      # Series: Asha, Meena, Arjun
+orders.loc[big, ["customer", "amount"]]          # DataFrame, 2 columns
+orders.loc[big, "customer":"amount"]             # column range by name, stop included
+orders.loc[orders["city"] == "Indore", "amount"].sum()    # total Indore amount -> 3950.0
+orders.loc[big].shape                            # (3, 5): all columns kept
+orders.loc[big, ["customer"]].shape              # (3, 1): list of one name stays a table
+```
+
+- `df.loc[rows, columns]` takes a row mask and the columns you want, in one step.
+- One column name gives a Series (shape `(3,)`); a list of names gives a DataFrame.
+- A mask alone, `df.loc[mask]`, keeps every column.
+- Both ends of a column range by name are included, in table order.
+- Labels are kept after filtering (0, 3, 6).
+- For reading, `df[mask]["col"]` and `df.loc[mask, "col"]` give the same values; for changing values (Topic 5) you must use `loc`.
+- Each condition inside the mask needs its own brackets: `(orders["city"] == "Indore") & (orders["amount"] > 1000)`.
+
+## Quick reference
+
+| Goal | Code |
+|---|---|
+| rows where marks above 80 | `df[df["marks"] > 80]` |
+| both conditions | `df[(a_test) & (b_test)]` |
+| either condition | `df[(a_test) \| (b_test)]` |
+| the opposite | `df[~mask]` |
+| value on a list | `df[df["city"].isin(["Pune", "Delhi"])]` |
+| value in a range | `df[df["marks"].between(75, 82)]` |
+| empty cells | `df[df["amount"].isna()]` |
+| filled cells | `df[df["amount"].notna()]` |
+| count of empty cells per column | `df.isna().sum()` |
+| name starts with / ends with / contains | `df["name"].str.startswith("A")` etc. |
+| short form | `df.query('city == "Indore" and marks > 80')` |
+| chosen rows and columns | `df.loc[mask, ["name", "marks"]]` |
+
+## Remember
+
+- A comparison gives a mask (True/False per row); `df[mask]` keeps the True rows.
+- Join masks with `&`, `|`, `~`, each condition in its own brackets; never `and`, `or`, `not` on a mask.
+- A comparison with NaN is always False; add `notna()` when empty cells must not slip in.
+- `isin` for a list of values, `between` for a range with both ends included.
+- Text tools need `.str`; capitals matter unless `case=False`.
+- In `query` the words `and`, `or`, `not` work, and `@` brings in a variable.
+- `loc[mask, columns]` picks rows and columns together and is the form used for changing values.
+- Filtering keeps the original labels.
+- Check `df.dtypes` before comparing a column with a number.
+
+## Watch out
+
+- `df[df["marks"] > 80 & df["city"] == "Indore"]` is wrong; each test needs brackets.
+- `(df["amount"]) > 1000` inside a bigger test gives a wrong result; the bracket must hold the whole comparison.
+- `df[df["marks"] = 80]` is a SyntaxError; use `==` to compare.
+- `df[mask1 and mask2]` gives ValueError: The truth value of a Series is ambiguous.
+- `~(df["amount"] > 1000)` keeps the rows where the amount is empty.
+- `df["col"] == np.nan` finds nothing; use `isna()`.
+- `df["city"].isin("Pune")` is a TypeError; use a list.
+- `df["name"].str.contains("a")` misses "Arjun"; add `case=False`.
+- `df.query("Amount > 1000")` or a column from another table gives UndefinedVariableError.
+- `df.loc[mask, "customer":"amount"]` includes both end columns.
+- A TypeError with `str` and `int` in a comparison means the column is text (`object`); check `df.dtypes`.
