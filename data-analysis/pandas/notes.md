@@ -1022,3 +1022,166 @@ c["first"].str[:3]                                         # the first 3 letters
 - `df["name"].strip()` without `.str` fails.
 - `str.replace(".", "-")` with regex on replaces every character.
 - After `replace("five", 5)` the column is still `object`.
+
+
+# Topic 6 — Adding and removing: drop, add a row, concat, insert
+
+## The example table
+
+`students.csv`, used in every example below:
+
+| | name | city | marks |
+|---|---|---|---|
+| 0 | Asha | Indore | 82 |
+| 1 | Vivek | Pune | 91 |
+| 2 | Ravi | Delhi | 67 |
+| 3 | Meena | Indore | 75 |
+
+```python
+import pandas as pd
+students = pd.read_csv("students.csv")
+df = students.copy()                 # work on a copy so the original stays safe
+```
+
+## Removing columns and rows: drop
+
+```python
+df.drop(columns=["city"])            # remove one column
+df.drop(columns=["city", "marks"])   # remove several columns
+df.drop(index=[1, 3])                # remove rows by LABEL (Vivek and Meena)
+df.drop(index=1)                     # one label does not need a list
+df.drop(index=[1, 3]).reset_index(drop=True)   # remove, then renumber 0, 1
+```
+
+| Goal | Code |
+|---|---|
+| remove columns | `df.drop(columns=[...])` |
+| remove rows by label | `df.drop(index=[...])` |
+| remove rows by a rule | `df.drop(df[df["marks"] < 80].index)` |
+
+- `drop` returns a new table; `df` is not changed. Save the result.
+- Always write `columns=` or `index=`. `df.drop("city")` looks for a row label called city and gives `KeyError: "['city'] not found in axis"`.
+- A wrong name gives KeyError. `errors="ignore"` skips names that do not exist.
+- Labels are kept after dropping rows, so use `reset_index(drop=True)` for a fresh 0, 1, 2.
+- Dropping by a rule gives the same result as a filter. `df[df["marks"] >= 80]` is usually shorter.
+
+### del and pop
+
+```python
+del c["city"]            # remove a column in place; returns nothing
+m = d.pop("marks")       # remove a column in place AND get it back as a Series
+```
+
+| | `del df["col"]` | `m = df.pop("col")` |
+|---|---|---|
+| Removes the column from `df` | yes | yes |
+| Gives the column back | no | yes, a Series |
+| Use when | the values are not needed | the values are still needed |
+
+- Both change the table itself, so `.copy()` first if the original must be safe.
+- Use `drop(columns=...)` when you want a new table and the original untouched.
+
+## Adding a row
+
+```python
+df.loc[4] = ["Kiran", "Pune", 88]         # label 4 is new -> a row is added at the bottom
+df.loc[len(df)] = ["Kiran", "Pune", 88]   # len(df) is the next free label
+df.loc[1] = ["Zed", "Goa", 50]            # label 1 EXISTS -> Vivek's row is replaced
+```
+
+- `loc[new_label] = [values]` works in place and returns nothing.
+- The list needs one value per column, in column order. Otherwise `ValueError: cannot set a row with mismatched columns`.
+- An existing label is overwritten without any warning.
+- `df.append(...)` no longer exists in pandas 2; use `concat`.
+- Adding rows one by one in a loop is slow. Collect the rows in a list, build one table, then `concat` once.
+
+## concat top to bottom
+
+```python
+a = pd.DataFrame({"name": ["Asha", "Vivek"], "city": ["Indore", "Pune"], "marks": [82, 91]})
+b = pd.DataFrame({"name": ["Ravi", "Meena"], "city": ["Delhi", "Indore"], "marks": [67, 75]})
+
+pd.concat([a, b])                         # stack b under a; labels 0 1 0 1 (repeated)
+pd.concat([a, b], ignore_index=True)      # labels 0 1 2 3
+pd.concat([a, c], join="inner", ignore_index=True)   # keep only the shared columns
+pd.concat([a, b], keys=["sec_A", "sec_B"])           # remember which table each row came from
+```
+
+| Situation | Result |
+|---|---|
+| same columns | rows stack cleanly |
+| a column in only one table | the other rows get NaN |
+| a column order that differs | still correct, columns are matched by name |
+| `join="inner"` | only the shared columns are kept |
+
+- The tables go inside one list: `pd.concat([a, b])`. `pd.concat(a, b)` gives `TypeError`.
+- Without `ignore_index=True` the labels repeat.
+- A column with NaN becomes `float64` (20 shows as 20.0).
+- `keys=` adds an outer label; `.loc["sec_B"]` pulls that table back out.
+- `concat` stacks rows. Matching rows by a shared column (an id) is `merge`, which comes later.
+
+## concat side by side
+
+```python
+pd.concat([n, c], axis=1)                 # axis=1 -> side by side (axis=0 is top to bottom)
+pd.concat([n, s], axis=1)                 # a Series can be glued too; its name becomes the column name
+pd.concat([n, z], axis=1, join="inner")   # keep only labels found in both tables
+```
+
+- Rows are matched by LABEL, not by position.
+- A label found in only one table gives NaN in the other table's columns.
+- Danger: if the labels do not describe the same rows (after shuffling or filtering), the data is mixed up silently. Run `reset_index(drop=True)` on the tables first when they are in the same order but have different labels.
+- For a single new column from a list, `df["new"] = [values]` is simpler. The length must equal the row count.
+
+## Adding a column at a chosen place, and reordering
+
+```python
+df["grade"] = ["A", "A", "B", "B"]                       # new column at the far right
+df.insert(1, "roll", [101, 102, 103, 104])               # insert(position, name, values)
+df[["marks", "name", "city"]]                            # reorder: select in the order you want
+df[["city"] + [c for c in df.columns if c != "city"]]    # move one column to the front
+```
+
+- `insert` works in place and returns nothing, so `df = df.insert(...)` would set `df` to None.
+- Position 0 is the front. A position above the column count gives `IndexError: loc must be an integer between -3 and 3`.
+- An existing name gives `ValueError: cannot insert roll, already exists`.
+- The values can be a list, one single value (repeated for every row), or a calculated column.
+- Reordering changes only the display order; the data and labels stay the same.
+
+## Quick reference
+
+| Goal | Code |
+|---|---|
+| remove columns | `df.drop(columns=["a", "b"])` |
+| remove rows by label | `df.drop(index=[1, 3])` |
+| remove a column in place | `del df["a"]` |
+| remove a column and keep it | `m = df.pop("a")` |
+| add a row (in place) | `df.loc[len(df)] = [...]` |
+| stack tables | `pd.concat([a, b], ignore_index=True)` |
+| glue tables side by side | `pd.concat([a, b], axis=1)` |
+| add a column at the end | `df["new"] = [...]` |
+| add a column at a position | `df.insert(1, "new", [...])` |
+| reorder columns | `df[["c", "a", "b"]]` |
+
+## Remember
+
+- `drop`, `concat` and column selection return a new table; save the result.
+- `loc[...] = row`, `insert`, `del` and `pop` change the table itself; use `.copy()` first when the original matters.
+- Always write `columns=` or `index=` in `drop`.
+- `concat` takes a list of tables. `axis=0` stacks, `axis=1` glues.
+- `concat` matches columns by name when stacking and rows by label when gluing.
+- Use `ignore_index=True` after stacking, and `reset_index(drop=True)` before gluing tables whose labels differ.
+- When a KeyError appears, print `list(df.columns)` first.
+
+## Watch out
+
+- `df.drop("city")` gives KeyError; write `df.drop(columns=["city"])`.
+- Forgetting to save the result of `drop` or `concat` changes nothing.
+- `df.loc[1] = [...]` on an existing label overwrites that row.
+- A row list with too few or too many values gives ValueError.
+- `pd.concat(a, b)` gives TypeError; write `pd.concat([a, b])`.
+- Missing columns in `concat` give NaN, and an int column with NaN becomes float.
+- Gluing side by side with different labels gives NaN or wrongly matched rows.
+- `df = df.insert(...)` sets `df` to None.
+- `insert` with an existing name gives ValueError; a too-large position gives IndexError.
+- Only the last line of a cell is shown; wrap the other lines in `print()`.
