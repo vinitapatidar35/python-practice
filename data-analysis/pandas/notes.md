@@ -815,3 +815,210 @@ orders.loc[big, ["customer"]].shape              # (3, 1): list of one name stay
 - `df.loc[mask, "customer":"amount"]` includes both end columns.
 - A TypeError with `str` and `int` in a comparison means the column is text (`object`); check `df.dtypes`.
 
+
+# Topic 5 — Updating, apply and strings
+
+This topic changes the table. The examples use `students.csv`, `orders.csv` and `shop.csv`.
+
+| name | city | marks |
+|---|---|---|
+| Asha | Indore | 82 |
+| Vivek | Pune | 91 |
+| Ravi | Delhi | 67 |
+| Meena | Indore | 75 |
+
+```python
+import pandas as pd
+students = pd.read_csv("students.csv")
+orders = pd.read_csv("orders.csv")      # order_id, customer, city, amount, items (8 rows)
+shop = pd.read_csv("shop.csv")          # item, category, price, qty, rating (6 rows)
+```
+
+## Changing values with loc
+
+```python
+df = students.copy()                                    # a separate copy, students stays untouched
+
+df.loc[2, "marks"] = 70                                 # row label 2, column marks -> Ravi becomes 70
+df.loc[df["city"] == "Indore", "city"] = "Indore City"  # a mask changes every matching row at once
+df.loc[df["marks"] >= 80, "grade"] = "A"                # a new column is created; other rows get NaN
+```
+
+| Part | Meaning |
+|---|---|
+| `df.loc[` row `,` column `] = value` | write a value at that place |
+| row | a label or a mask |
+| column | a column name in quotes (a new name creates a new column) |
+
+- Writing changes the table in place; it does not return a new table.
+- `df = students` is only a second name for the same table, so a change through `df` also changes `students`. Use `.copy()`.
+- Writing needs `loc` with row and column together. `df[mask]["marks"] = 0` often changes nothing, because `df[mask]` is a temporary copy.
+- Rows not matched by the mask get NaN in a newly created column.
+- A single `=` writes, `==` compares.
+
+## Column arithmetic and new columns
+
+```python
+df["marks"] + 5                                    # a new Series, df unchanged
+df["bonus"] = df["marks"] + 5                      # saved as a new column
+df["name_city"] = df["name"] + " - " + df["city"]  # text + text joins them row by row
+df["country"] = "India"                            # one value goes into every row
+orders["per_item"] = orders["amount"] / orders["items"]   # column / column, row by row
+shop["sale_price"] = shop["price"] * 0.9
+orders["amount"].sum()                             # one number from a column -> 8740.0
+```
+
+| Sign | Meaning |
+|---|---|
+| `+` `-` `*` `/` | add, subtract, multiply, divide |
+| `//` | division without the remainder |
+| `%` | remainder |
+| `**` | power |
+
+- A calculation on a column applies to every row at once.
+- Two columns of the same table work row by row.
+- `df["new"] = ...` makes a new column; an existing name is overwritten.
+- A calculation involving NaN gives NaN in that row (`per_item` for orders 1002 and 1004).
+- `sum()`, `mean()`, `max()`, `min()` on a column skip the empty cells.
+- Text plus a number gives `TypeError: can only concatenate str (not "int") to str`.
+
+## rename and replace
+
+```python
+r = df.rename(columns={"name": "student", "marks": "score"})   # old name : new name
+df.rename(columns=str.upper)                  # a tool applied to every name -> NAME, CITY, MARKS
+df.rename(columns={"Name": "x"})              # wrong capital: nothing changes, no error
+df.columns = ["n", "c", "m"]                  # replace all names at once
+
+df["city"].replace("Indore", "Indore City")                  # one value in one column
+df["city"].replace({"Indore": "IDR", "Pune": "PNQ"})         # several at once
+df.replace({"city": {"Delhi": "New Delhi"}})                 # on the whole table: {column: {old: new}}
+shop["qty"] = shop["qty"].replace("five", 5)                 # fix the stray text cell
+```
+
+- `rename` and `replace` return new objects; save the result with `=` to keep the change.
+- A wrong old name in `rename` is ignored silently; check with `list(df.columns)`.
+- `str.upper` is written without brackets: `rename` runs the tool itself on each name.
+- `df.columns = [...]` needs exactly one name per column, or ValueError.
+- `replace` matches the whole cell, not a part of the text.
+- After `replace("five", 5)` the column is still `object`, because the other cells are text; `astype` (cleaning topic) turns it into numbers.
+
+## map
+
+```python
+state_of = {"Indore": "MP", "Pune": "MH", "Delhi": "DL"}   # city -> state
+df["state"] = df["city"].map(state_of)
+df["city"].map({"Indore": "MP"})              # MP, NaN, NaN, MP  (unmatched become NaN)
+df["city"].replace({"Indore": "MP"})          # MP, Pune, Delhi, MP  (unmatched are kept)
+df["name"].map(str.upper)                     # a function also works
+df["city"].map({"Indore": "MP", "Pune": "MH"}).fillna("unknown")
+```
+
+| | `map` | `replace` |
+|---|---|---|
+| Unmatched values | become NaN | stay as they are |
+| Best for | turning every value into another kind (city to state) | fixing a few values |
+
+- `map` works on one column (a Series), not on the whole table.
+- Capitals and spaces must match exactly: `"indore"` does not find `"Indore"`.
+- `fillna("word")` fills the NaN boxes left by missing keys.
+
+## apply
+
+```python
+def grade(m):                                     # takes one mark, returns one grade
+    if m >= 80:
+        return "A"
+    elif m >= 70:
+        return "B"
+    else:
+        return "C"
+
+df["grade"] = df["marks"].apply(grade)            # no brackets after grade
+df["marks"].apply(lambda m: m + 5)                # a one-line rule with no name
+df["intro"] = df.apply(lambda row: row["name"] + " from " + row["city"], axis=1)   # a rule on each ROW
+```
+
+- `df["col"].apply(function)` runs the function on every value and returns a new Series.
+- `def` makes your own rule; `return` is what comes back for each value.
+- `lambda x: x + 5` is a one-line function with no name.
+- `df.apply(function, axis=1)` gives the function a whole row; read values with `row["col"]`.
+- NaN is passed into the function too. `NaN > 1000` is False, so the empty amount of order 1002 lands in the else branch (`small`). Repair those rows with a `loc` mask afterwards.
+- Use column arithmetic where possible (faster); use `apply` when the rule needs if/else or several steps.
+- `map(dictionary)` is for lookups, `apply(function)` is for rules.
+- `apply(grade())` with brackets fails: `grade() missing 1 required positional argument`.
+
+## String cleaning with .str
+
+```python
+raw = pd.DataFrame({"name": ["  asha SHARMA ", "VIVEK  singh", "Ravi-Kumar", "meena patel"]})
+c = raw.copy()
+c["name"] = c["name"].str.strip()                          # spaces at the start and end go
+c["name"] = c["name"].str.title()                          # Asha Sharma
+c["name"] = c["name"].str.replace("-", " ", regex=False)   # dash to space, as plain text
+c["name"] = c["name"].str.replace("  ", " ", regex=False)  # two spaces to one
+
+parts = c["name"].str.split(" ", expand=True)              # pieces in separate columns 0, 1
+c["first"] = parts[0]
+emails = pd.Series(["asha@gmail.com", "vivek@yahoo.com"])
+domain = emails.str.split("@").str[1]                      # cut at @, take piece number 1 -> gmail.com, yahoo.com
+c["first"].str[:3]                                         # the first 3 letters
+```
+
+| Tool | Gives |
+|---|---|
+| `str.strip()` | no spaces at the start and end (`lstrip`, `rstrip` for one side) |
+| `str.lower()`, `str.upper()`, `str.title()` | changed capitals |
+| `str.replace(old, new, regex=False)` | part of each text changed |
+| `str.split(sep)` | a list per row |
+| `str.split(sep, expand=True)` | the pieces in separate columns |
+| `.str[1]`, `.str[:3]` | piece number 1 of a list, or the first 3 letters of a text |
+
+- Text tools need `.str`; `df["name"].strip()` fails with AttributeError.
+- `strip()` removes spaces only at the ends, not in the middle.
+- `regex=False` treats the text as plain characters. With regex on, `.` matches every character and `+` or `(` can cause errors.
+- Tools chain in order: `df["email"].str.strip().str.lower()`.
+- Clean first, then compare or group: `" Pune"` and `"Pune"` are different values until stripped.
+- A column holding NaN gives NaN for those rows; `.str` on a column of numbers gives AttributeError.
+
+## Quick reference
+
+| Goal | Code |
+|---|---|
+| change one cell | `df.loc[2, "marks"] = 70` |
+| change many rows | `df.loc[mask, "col"] = value` |
+| keep the original safe | `df = students.copy()` |
+| new column from a calculation | `df["bonus"] = df["marks"] + 5` |
+| rename columns | `df.rename(columns={"old": "new"})` |
+| change values in a column | `df["col"].replace({"old": "new"})` |
+| turn values through a lookup | `df["col"].map(dictionary)` |
+| your own rule on a column | `df["col"].apply(function)` |
+| your own rule on each row | `df.apply(function, axis=1)` |
+| clean text | `df["col"].str.strip().str.lower()` |
+| cut text | `df["col"].str.split(" ", expand=True)` |
+
+## Remember
+
+- Work on a copy (`.copy()`) before changing a table you need to keep.
+- Writing into a table needs `loc[row, column] = value`.
+- Column arithmetic works on every row at once; NaN stays NaN.
+- `rename`, `replace`, `map`, `apply` and the `.str` tools all return new objects; save them with `=`.
+- `map` turns unmatched values into NaN; `replace` keeps them.
+- Pass a function to `apply` or `rename` without brackets.
+- Comparisons with NaN are False, so empty cells fall into an else branch; repair them with a mask afterwards.
+- Text tools need `.str`, and use `regex=False` for plain text.
+
+## Watch out
+
+- `df2 = df` is not a copy; changes to `df2` change `df`.
+- `df[mask]["col"] = value` may change nothing; use `df.loc[mask, "col"] = value`.
+- Text plus a number gives TypeError.
+- `df.rename(columns={"Name": "x"})` does nothing when the column is `name`, and shows no error.
+- `df.columns = ["a", "b"]` with the wrong number of names gives ValueError.
+- `replace` and `rename` do not change the table unless the result is saved.
+- `map` with a missing key gives NaN.
+- `apply(grade())` with brackets is an error; write `apply(grade)`.
+- `df.apply(f)` without `axis=1` runs on columns, so `row["name"]` raises KeyError.
+- `df["name"].strip()` without `.str` fails.
+- `str.replace(".", "-")` with regex on replaces every character.
+- After `replace("five", 5)` the column is still `object`.
