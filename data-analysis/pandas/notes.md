@@ -1185,3 +1185,300 @@ df[["city"] + [c for c in df.columns if c != "city"]]    # move one column to th
 - `df = df.insert(...)` sets `df` to None.
 - `insert` with an existing name gives ValueError; a too-large position gives IndexError.
 - Only the last line of a cell is shown; wrap the other lines in `print()`.
+
+
+# Topic 6A — get_dummies: turning text columns into 0/1 columns
+
+## The example table
+
+`students.csv`, used in every example below:
+
+| | name | city | marks |
+|---|---|---|---|
+| 0 | Asha | Indore | 82 |
+| 1 | Vivek | Pune | 91 |
+| 2 | Ravi | Delhi | 67 |
+| 3 | Meena | Indore | 75 |
+
+```python
+import pandas as pd
+df = pd.read_csv("students.csv")
+```
+
+## Why it is needed
+
+- A model can only do maths on numbers, and a column like `city` holds words.
+- Numbering the cities (Delhi=1, Indore=2, Pune=3) is avoided, because it tells the model that the cities have an order and a size (Pune is three times Indore).
+- `get_dummies` makes one column per distinct value, with 1 where the row has that value and 0 elsewhere. This is called one-hot encoding.
+
+## The basic call
+
+```python
+pd.get_dummies(df["city"])                  # one column per city; True/False in new pandas
+pd.get_dummies(df["city"], dtype=int)       # 0 and 1 instead of False/True
+pd.get_dummies(df["city"], prefix="city", dtype=int)   # names become city_Delhi, city_Indore, city_Pune
+```
+
+```
+   Delhi  Indore  Pune
+0      0       1     0
+1      0       0     1
+2      1       0     0
+3      0       1     0
+```
+
+- New columns are in alphabetical order of the values.
+- Every row has exactly one 1: `d.sum(axis=1)` is 1 for every row.
+- The sum of a column is the number of rows with that value: `d.sum()` gives Delhi 1, Indore 2, Pune 1.
+- It returns a new table; `df` is not changed. Save the result.
+
+## Encoding inside the whole table
+
+```python
+pd.get_dummies(df, columns=["city"], dtype=int)
+```
+
+```
+    name  marks  city_Delhi  city_Indore  city_Pune
+0   Asha     82           0            1          0
+1  Vivek     91           0            0          1
+2   Ravi     67           1            0          0
+3  Meena     75           0            1          0
+```
+
+- `columns=["city"]` names the column to encode. The other columns are kept as they are.
+- The old `city` column is replaced by its boxes, with `city_` added in front automatically.
+- Always give `columns=`. Without it pandas encodes every text column, so `name` turns into `name_Asha`, `name_Meena`, ... (8 columns instead of 5).
+- Number columns such as `marks` are never encoded.
+- The manual equivalent: `pd.concat([df.drop(columns=["city"]), pd.get_dummies(df["city"], prefix="city", dtype=int)], axis=1)`.
+
+## drop_first
+
+```python
+pd.get_dummies(df, columns=["city"], drop_first=True, dtype=int)
+```
+
+- It removes the first box (Delhi). If all remaining boxes are 0, the row belongs to the dropped value (Ravi), so no information is lost.
+- It is useful for linear models, where the full set of boxes always adds up to 1 and duplicates the information.
+
+## Missing values
+
+```python
+pd.get_dummies(df["city"], dtype=int)                  # a missing city gets 0 in every box
+pd.get_dummies(df["city"], dummy_na=True, dtype=int)   # an extra box for "missing"
+```
+
+## The train / test trap
+
+`get_dummies` makes boxes only for the values it sees in that table. A second table with fewer cities gets fewer columns, so the two tables no longer line up.
+
+```python
+tr = pd.get_dummies(train, columns=["city"], dtype=int)    # city_Delhi, city_Indore, city_Pune
+te = pd.get_dummies(test, columns=["city"], dtype=int)     # city_Indore, city_Pune  (no Delhi in test)
+list(tr.columns) == list(te.columns)                       # False
+
+fixed = te.reindex(columns=tr.columns, fill_value=0)       # exactly the train columns; missing boxes become 0
+```
+
+| Fix | How | Note |
+|---|---|---|
+| 1 | `te.reindex(columns=tr.columns, fill_value=0)` | train stays the single source of truth |
+| 2 | `pd.concat([train, test], ignore_index=True)`, then one `get_dummies`, then split with `iloc` | simple, but test values leak into the encoding |
+
+- A value that is new in test (Goa) has no box in the fixed table, so its row is all 0. The model never saw it.
+- Check `list(train_encoded.columns) == list(test_encoded.columns)` before giving data to a model.
+- scikit-learn's `OneHotEncoder` handles this automatically, which is the reason it exists.
+
+## Quick reference
+
+| Goal | Code |
+|---|---|
+| boxes for one column | `pd.get_dummies(df["city"], dtype=int)` |
+| names with a prefix | `pd.get_dummies(df["city"], prefix="city", dtype=int)` |
+| encode inside the table | `pd.get_dummies(df, columns=["city"], dtype=int)` |
+| drop one box per column | `drop_first=True` |
+| a box for missing values | `dummy_na=True` |
+| match test to train | `te.reindex(columns=tr.columns, fill_value=0)` |
+
+## Remember
+
+- One value, one box; each row has exactly one 1.
+- Give `columns=[...]` so only the intended column is encoded.
+- Use `dtype=int` to get 0/1.
+- `get_dummies` returns a new table; save the result.
+- Test data must end with exactly the train columns, in the same order.
+
+## Watch out
+
+- `pd.get_dummies(df)` without `columns=` also encodes `name`, giving one box per person.
+- Forgetting to save the result changes nothing in `df`.
+- Without `dtype=int` the boxes show as True/False in new pandas.
+- Encoding train and test separately gives different columns when a value is missing from one of them.
+- A new value in test becomes an all-0 row after `reindex`.
+- With `drop_first=True`, remember which value was dropped; it is the first one alphabetically.
+- Only the last line of a cell is shown; wrap the other lines in `print()`.
+
+
+# Topic 7 — Sorting: sort_values, nlargest, sort_index, rank
+
+## The example tables
+
+`students` (used for most examples):
+
+| | name | city | marks |
+|---|---|---|---|
+| 0 | Asha | Indore | 82 |
+| 1 | Vivek | Pune | 91 |
+| 2 | Ravi | Delhi | 67 |
+| 3 | Meena | Indore | 75 |
+
+`exam` has ties (Vivek and Kiran both 91, Asha and Meena both 82, Ravi and Dev both 67), and `shop` has missing ratings:
+
+```python
+import pandas as pd
+df = pd.read_csv("students.csv")
+
+exam = pd.DataFrame({"name": ["Asha", "Vivek", "Ravi", "Meena", "Kiran", "Dev"],
+                     "city": ["Indore", "Pune", "Delhi", "Indore", "Pune", "Delhi"],
+                     "marks": [82, 91, 67, 82, 91, 67]})
+
+shop = pd.DataFrame({"item": ["pen", "doll", "novel", "rice", "ball"],
+                     "price": [10, 250, 400, 60, 120],
+                     "rating": [4.5, None, 3.8, None, 4.2]})
+```
+
+## sort_values: one column
+
+```python
+df.sort_values("marks")                              # low to high (the default)
+df.sort_values("marks", ascending=False)             # high to low
+df.sort_values("marks", ascending=False, ignore_index=True)   # and renumber the labels 0, 1, 2 ...
+df.sort_values("name")["name"].tolist()              # text sorts A to Z -> ['Asha', 'Meena', 'Ravi', 'Vivek']
+df["marks"].sort_values(ascending=False).head(2)     # sorting one column (a Series): the top two marks
+```
+
+- It re-stacks the same rows in a new order. Each row keeps its own label, so after sorting the labels are out of order (2, 3, 0, 1).
+- It returns a new table; `df` keeps its old order. Save the result.
+- For fresh labels use `reset_index(drop=True)` or `ignore_index=True`.
+- After sorting, position and label differ: `iloc[0]` is the first row of the new order, `loc[0]` is the row with label 0.
+- Capital letters come before small letters in a text sort.
+- A wrong column name gives `KeyError: 'Marks'`.
+- The chain `df.sort_values("name")["name"].tolist()` sorts the table, selects the column, then turns it into a plain list.
+
+## Sorting by several columns
+
+```python
+exam.sort_values(["marks", "name"], ascending=[False, True])
+```
+
+```
+    name    city  marks
+4  Kiran    Pune     91
+1  Vivek    Pune     91
+0   Asha  Indore     82
+3  Meena  Indore     82
+5    Dev   Delhi     67
+2   Ravi   Delhi     67
+```
+
+- The columns go inside one list. The first column is the main rule; the next one only settles ties in the first.
+- `ascending=[False, True]` gives one direction per column, in the same order. A list of the wrong length gives `ValueError: Length of ascending (1) != length of by (2)`.
+- A single `ascending=False` applies to every column.
+- The order in the list matters: `["city", "marks"]` and `["marks", "city"]` give different tables.
+- Ties that no column settles can come out in any order, so keep adding columns until the order is fixed.
+- Top N by a rule: `exam.sort_values(["marks", "name"], ascending=[False, True]).head(3)`.
+
+## Missing values in a sort
+
+```python
+shop.sort_values("rating")                                   # NaN rows go to the END
+shop.sort_values("rating", ascending=False)                  # NaN rows are STILL at the end
+shop.sort_values("rating", na_position="first")              # NaN rows on top
+shop.dropna(subset=["rating"]).sort_values("rating", ascending=False)   # leave the NaN rows out
+```
+
+- `sort_values` always puts NaN at the end, in both directions.
+- `na_position="first"` moves them to the top.
+- `dropna(subset=[...])` removes the rows with a missing value in the named column.
+
+## nlargest and nsmallest
+
+```python
+shop.nlargest(2, "price")        # the 2 rows with the biggest price, biggest first
+shop.nsmallest(2, "price")       # the 2 rows with the smallest price, smallest first
+shop["price"].nlargest(2)        # on a single column: just the values with their labels
+shop.nlargest(3, ["rating", "price"])   # a list of columns also works
+```
+
+- `df.nlargest(2, "price")` gives the same rows as `df.sort_values("price", ascending=False).head(2)`, and it is shorter.
+- NaN rows are never picked as largest or smallest.
+- For ties at the edge, `keep="first"` (default) keeps the earlier row, and `keep="all"` keeps every tied row.
+
+## sort_index
+
+```python
+a = df.set_index("name")
+a.sort_index()                       # rows sorted by their LABELS: Asha, Meena, Ravi, Vivek
+a.sort_index(ascending=False)        # Z to A
+df.sort_values("marks").sort_index() # back to the original 0, 1, 2, 3 order
+df.sort_index(axis=1)                # sort the column names instead
+```
+
+- `sort_values` sorts by what is inside the table; `sort_index` sorts by the row labels on the left.
+- `sort_index()` undoes any `sort_values` as long as the labels are the original ones.
+
+## rank
+
+```python
+df["marks"].rank(ascending=False).tolist()         # [2.0, 1.0, 4.0, 3.0]
+df["rank"] = df["marks"].rank(ascending=False).astype(int)
+df.sort_values("rank")                             # the rank list
+```
+
+- A rank is a place number: 1st, 2nd, 3rd. `rank` gives each row its number and moves no rows.
+- By default the smallest value gets rank 1. Use `ascending=False` so the highest value gets rank 1.
+- It returns decimals, so use `.astype(int)` when there are no ties and no missing values.
+- To see the rank list, add the numbers as a column and then use `sort_values("rank")`.
+
+### Ties (only needed when values repeat)
+
+| method | the two 91s, then the 82s | idea |
+|---|---|---|
+| `average` (default) | 1.5, 1.5, then 3.5, 3.5 | the average of the positions they share |
+| `min` | 1, 1, then 3, 3 | the best shared position (race style) |
+| `dense` | 1, 1, then 2, 2 | no gap after a tie |
+| `first` | 1, 2, then 3, 4 | the table order breaks the tie |
+
+## Quick reference
+
+| Goal | Code |
+|---|---|
+| sort by one column | `df.sort_values("marks")` |
+| high to low | `df.sort_values("marks", ascending=False)` |
+| several columns | `df.sort_values(["a", "b"], ascending=[False, True])` |
+| fresh labels | `ignore_index=True` or `.reset_index(drop=True)` |
+| missing values first | `na_position="first"` |
+| top n rows | `df.nlargest(n, "col")` |
+| bottom n rows | `df.nsmallest(n, "col")` |
+| sort by labels | `df.sort_index()` |
+| place numbers | `df["col"].rank(ascending=False)` |
+
+## Remember
+
+- `sort_values` and `sort_index` return a new table; save the result.
+- Labels travel with their rows when you sort.
+- The first column in a list of columns is the main rule.
+- NaN goes to the end of a sort unless `na_position="first"`.
+- `nlargest(n, "col")` is the short form of sort high to low plus `head(n)`.
+- `rank` numbers the rows and moves nothing; `ascending=False` makes the highest value rank 1.
+
+## Watch out
+
+- `df.sort_values("Marks")` gives KeyError; check `list(df.columns)`.
+- `ascending=[False]` for two columns gives ValueError; one direction per column.
+- `df.sort_values("marks", "name")` fails; the columns go inside one list.
+- A forgotten save leaves `df` in the old order.
+- After sorting, `loc[0]` and `iloc[0]` are different rows.
+- `rank` without `ascending=False` gives the smallest value rank 1.
+- A rank column of decimals (2.0) needs `.astype(int)`.
+- Only the last line of a cell is shown; wrap the other lines in `print()`.
