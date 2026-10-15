@@ -1482,3 +1482,559 @@ df.sort_values("rank")                             # the rank list
 - `rank` without `ascending=False` gives the smallest value rank 1.
 - A rank column of decimals (2.0) needs `.astype(int)`.
 - Only the last line of a cell is shown; wrap the other lines in `print()`.
+
+# Topic 8 — groupby: sum, agg, transform
+
+## The example table
+
+```python
+import pandas as pd
+
+orders = pd.DataFrame({"order_id": [1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008],
+                       "customer": ["asha", "ravi", "zoya", "meena", "asha", "zoya", "ravi", "kiran"],
+                       "city": ["Indore", "Delhi", "Pune", "Indore", "Indore", "Pune", "Delhi", "Pune"],
+                       "category": ["Food", "Toys", "Books", "Food", "Books", "Food", "Toys", "Toys"],
+                       "amount": [1200, 800, 1500, 950, 400, 300, 600, 1100]})
+```
+
+## The idea
+
+`groupby("city")` sorts the rows into one pile per city. Nothing is calculated until you choose a column and a method.
+
+```python
+orders.groupby("city")["amount"].sum()
+#       ^ pile by     ^ which number  ^ what to do with each pile
+```
+
+| city | pile (amounts) | sum | mean | max | size |
+|---|---|---|---|---|---|
+| Delhi | 800, 600 | 1400 | 700.0 | 800 | 2 |
+| Indore | 1200, 950, 400 | 2550 | 850.0 | 1200 | 3 |
+| Pune | 1500, 300, 1100 | 2900 | 966.7 | 1500 | 3 |
+
+## One number per group
+
+```python
+orders.groupby("city")["amount"].sum()      # Delhi 1400, Indore 2550, Pune 2900
+orders.groupby("city")["amount"].mean()
+orders.groupby("city")["amount"].max()
+orders.groupby("city").size()               # rows per group (needs no column)
+orders.groupby("city")["amount"].count()    # non-empty values per group
+```
+
+- The result is a Series. The group names are its labels, sorted by name.
+- `.reset_index()` (or `groupby("city", as_index=False)`) turns the labels back into a normal column.
+- `idxmax()` gives the label of the biggest value: `orders.groupby("city")["amount"].sum().idxmax()` is `'Pune'`.
+- `count` skips empty values; `size` counts rows.
+- `orders.groupby("city").mean()` without choosing a column fails on text columns.
+- The original table is unchanged, and the group totals add up to the grand total.
+
+## Several numbers at once: agg
+
+```python
+r = orders.groupby("city").agg(
+    total   = ("amount", "sum"),          # new_name = ("column", "method")
+    biggest = ("amount", "max"),
+    bills   = ("order_id", "count"),
+    buyers  = ("customer", "nunique"),    # different customers, each counted once
+)
+```
+
+```
+        total  biggest  bills  buyers
+city
+Delhi    1400      800      2       1
+Indore   2550     1200      3       2
+Pune     2900     1500      3       2
+```
+
+- You choose the new column names.
+- The result is a normal table with the group names as labels: `r.reset_index()`, `r.sort_values("total", ascending=False)`, `r.loc["Pune", "total"]`, `r["total"].idxmax()` all work.
+- Older ways you may see: a list `["sum", "mean", "max"]` (columns named after the methods) and a dict `{"amount": "sum", "order_id": "count"}` (column names stay as they were).
+- Use `agg` only when you want two or more numbers or your own names. For one number use `.sum()`.
+
+## Two group columns
+
+```python
+orders.groupby(["city", "category"])["amount"].sum()
+orders.groupby(["city", "category"], as_index=False).agg(total=("amount", "sum"), bills=("order_id", "count"))
+```
+
+- Put the columns inside one list.
+- The result has two labels; use `.reset_index()` or `as_index=False`.
+
+## Keep only some groups
+
+```python
+# original rows of cities whose total is above 2000
+orders.groupby("city").filter(lambda g: g["amount"].sum() > 2000)
+
+# the same in two steps
+t = orders.groupby("city")["amount"].sum()
+big = t[t > 2000].index
+orders[orders["city"].isin(big)]
+```
+
+## Top rows in each group
+
+```python
+s = orders.sort_values("amount", ascending=False)   # sort first
+s.groupby("city").head(1)                           # biggest bill of each city
+s.groupby("city").head(2)                           # top 2 of each city
+orders.loc[orders.groupby("city")["amount"].idxmax()]   # biggest row of each city
+```
+
+- Sort first, then `head(n)`. Without sorting, `head` only takes the first rows in table order.
+
+## transform: the group's number on every row
+
+```python
+orders.groupby("city")["amount"].transform("sum")   # 8 values, same order as orders
+
+o = orders.copy()
+o["city_total"] = o.groupby("city")["amount"].transform("sum")
+o["city_avg"]   = o.groupby("city")["amount"].transform("mean").round(1)
+o[o["amount"] > o["city_avg"]]                      # bills above their own city's average
+```
+
+| | result length | use it when |
+|---|---|---|
+| `.sum()`, `.agg(...)` | one row per group | you want a summary table |
+| `.transform("sum")` | one value per original row | you want the group number beside every row |
+
+## Share, rank and fill inside groups
+
+```python
+# share of the city's total
+o["share_pct"] = (o["amount"] / o["city_total"] * 100).round(1)
+
+# rank inside each city (biggest = 1, restarts in every city)
+o["rank_in_city"] = o.groupby("city")["amount"].rank(ascending=False).astype(int)
+o[o["rank_in_city"] <= 2]                           # top 2 per city
+
+# fill empty values with the group's average
+m["filled"] = m["amount"].fillna(m.groupby("city")["amount"].transform("mean"))
+```
+
+- Empty values (NaN) are skipped when the group mean is worked out.
+
+## Quick reference
+
+| Goal | Code |
+|---|---|
+| one number per group | `df.groupby("g")["x"].sum()` |
+| rows per group | `df.groupby("g").size()` |
+| group names as a column | `.reset_index()` or `as_index=False` |
+| many numbers | `df.groupby("g").agg(new=("x", "sum"), ...)` |
+| two group columns | `df.groupby(["a", "b"])["x"].sum()` |
+| keep some groups | `df.groupby("g").filter(lambda g: g["x"].sum() > n)` |
+| top n per group | `df.sort_values("x", ascending=False).groupby("g").head(n)` |
+| group number on every row | `df.groupby("g")["x"].transform("sum")` |
+| rank inside group | `df.groupby("g")["x"].rank(ascending=False)` |
+| fill by group | `df["x"].fillna(df.groupby("g")["x"].transform("mean"))` |
+
+## Remember
+
+- `groupby` makes piles; you must choose a column and a method.
+- The result of `sum()`, `mean()`, `agg(...)` has one row per group, with the group names as labels.
+- `agg(new_name=("column", "method"))` is the clearest way to get several numbers.
+- `transform` keeps the length of the original table, so it fits into a new column.
+- Sort first, then `groupby(...).head(n)` for the top rows per group.
+- Group total, share, rank and fill are all `groupby` + `transform`.
+
+## Watch out
+
+- `groupby("a", "b")` is wrong; use a list `["a", "b"]`.
+- `df.groupby("g").mean()` fails when text columns are present; choose the number column.
+- A wrong column name gives KeyError (check capitals), also inside `agg`.
+- `agg(total="amount")` gives TypeError; it needs `("amount", "sum")`.
+- `df["new"] = df.groupby("g")["x"].sum()` gives NaN everywhere, with no error; use `transform("sum")`.
+- `rank` or `mean` without `groupby` works over the whole table, with no error.
+- `head(n)` without sorting first is not "top n".
+- `size` counts rows; `count` skips empty values.
+- Only the last line of a cell is shown; wrap the other lines in `print()`.
+
+
+# Topic 9 — Cleaning and missing values: isna, dropna, fillna, astype, duplicates
+
+## The example tables
+
+```python
+import pandas as pd
+import numpy as np
+
+df = pd.DataFrame({"name":   ["Asha", "Ravi", "Meena", "Kiran", "Dev", "Zoya"],
+                   "city":   ["Indore", None, "Pune", "Delhi", None, "Pune"],
+                   "age":    [25, 31, None, 28, None, 40],
+                   "salary": [50000, 62000, 45000, None, 58000, 71000]})
+
+raw = pd.DataFrame({"item":  ["pen", "book", "bag", "ball"],
+                    "price": ["100", "250", "abc", "80"],     # numbers stored as text, one bad entry
+                    "qty":   [2, 5, 1, 3],
+                    "size":  ["10", "20", "30", "40"]})
+
+d = pd.DataFrame({"order_id": [1, 2, 3, 4, 5, 6],
+                  "customer": ["asha", "ravi", "asha", "meena", "ravi", "asha"],
+                  "item":     ["pen", "book", "pen", "bag", "book", "ball"],
+                  "amount":   [100, 250, 100, 400, 250, 90]})
+```
+
+An empty box is `NaN` ("not a number"). A CSV's empty cell becomes `NaN`, and a number column that holds a `NaN` becomes decimals (25.0).
+
+## Finding missing values
+
+```python
+df.isna()                       # True/False table, True = missing (isnull() is the same)
+df.notna()                      # the opposite
+df.isna().sum()                 # blanks per column (run this first on any new data)
+df.isna().sum().sum()           # blanks in the whole table
+(df.isna().mean() * 100).round(1)   # percent missing per column
+df["age"].isna().sum()          # blanks in one column
+df[df["age"].isna()]            # rows where age is missing
+df[df["city"].notna()]          # rows where city is filled
+df[df.isna().any(axis=1)]       # rows with at least one blank
+df.info()                       # Non-Null Count lower than the row count = missing values
+df["city"].value_counts(dropna=False)   # show NaN in the count (it is skipped by default)
+```
+
+- `any(axis=1)` asks, for each row, "is any box True?".
+- `df["x"] == np.nan` is always False, with no error. Use `isna()`.
+- `info()` prints by itself; do not wrap it in `print(...)`.
+
+## Removing missing values: dropna
+
+```python
+df.dropna()                          # drop every row with ANY blank
+df.dropna(subset=["city"])           # look only at these columns
+df.dropna(subset=["age", "salary"])  # age OR salary blank -> row dropped
+df.dropna(how="all")                 # drop a row only if ALL its boxes are blank
+df.dropna(thresh=3)                  # keep rows with at least 3 filled boxes
+df.dropna(axis=1)                    # drop COLUMNS that have a blank
+df.dropna().reset_index(drop=True)   # renumber the labels afterwards
+```
+
+## Filling missing values: fillna
+
+```python
+d2 = df.copy()
+d2["age"] = d2["age"].fillna(0)                          # a number
+d2["city"] = d2["city"].fillna("Unknown")                # a text
+d2["age"] = d2["age"].fillna(d2["age"].mean())           # mean
+d2["salary"] = d2["salary"].fillna(d2["salary"].median())   # median
+d2["city"] = d2["city"].fillna(df["city"].mode()[0])     # most common value (mode)
+
+df.fillna({"city": "Unknown", "age": df["age"].median(), "salary": 0})   # several columns at once
+
+# by group (Topic 8)
+df["salary"].fillna(df.groupby("city")["salary"].transform("mean"))
+```
+
+- Mean and median skip the blanks when they calculate. The median is safer when a few values are very large or very small.
+- `mode()` can return several values; `[0]` picks the first.
+
+| Situation | Usually |
+|---|---|
+| a column is almost empty | drop the column |
+| very few rows are blank | drop those rows with `subset=` |
+| a number column with many blanks | fill with the median or mean |
+| a text column | fill with `"Unknown"` or the mode |
+| the target column of a model | drop those rows, do not invent the answer |
+
+## Fixing types: astype and to_numeric
+
+```python
+raw.dtypes                                        # check the types first
+raw["size"].sum()                                 # '10203040' -> text is glued together (no error)
+
+r = raw.copy()
+r["size"] = r["size"].astype(int)                 # text -> whole numbers
+r["qty"] = r["qty"].astype(float)                 # whole -> decimals
+r["qty"] = r["qty"].astype(str)                   # numbers -> text
+pd.Series([3.7, 2.2]).astype(int)                 # [3, 2] -> decimals are cut off, not rounded
+
+raw["price"].astype(int)                          # ValueError: 'abc' cannot become a number
+
+r = raw.copy()
+r["price"] = pd.to_numeric(r["price"], errors="coerce")   # bad entries -> NaN
+r["price"].isna().sum()                                   # how many were bad
+r["price"] = r["price"].fillna(r["price"].mean())         # fill them
+r["price"] = r["price"].astype(int)                       # whole numbers again
+
+# symbols inside the text: remove them first (.str from Topic 5)
+m = pd.DataFrame({"cost": ["Rs 1,200", "Rs 850", "Rs 99"]})
+m["cost"] = m["cost"].str.replace("Rs ", "").str.replace(",", "").astype(int)
+
+pd.Series([1.0, 2.0, np.nan]).astype(int)         # IntCastingNaNError: a whole-number column cannot hold NaN
+pd.Series([1.0, 2.0, np.nan]).astype("Int64")     # [1, 2, <NA>] -> the special type that allows blanks
+```
+
+- Recipe for a text column that should be numbers: `to_numeric(errors="coerce")`, count the NaN, fill or drop, then `astype(int)`.
+- Type names: `int`, `float`, `str`, `bool`, `"category"`.
+
+## Duplicates
+
+```python
+d.duplicated()                                          # all False: order_id makes every row different
+d.duplicated(subset=["customer", "item"])               # True for rows that repeat an earlier one
+d[d.duplicated(subset=["customer", "item"])]            # the repeated rows
+d[d.duplicated(subset=["customer", "item"], keep=False)]   # the originals and their repeats
+d.duplicated(subset=["customer", "item"]).sum()         # how many repeats
+
+d.drop_duplicates(subset=["customer", "item"])                 # keep the first of each
+d.drop_duplicates(subset=["customer", "item"], keep="last")    # keep the last of each
+d.drop_duplicates(subset=["customer", "item"], keep=False)     # drop every row that has a repeat
+d.drop_duplicates(subset=["customer", "item"], ignore_index=True)   # and renumber
+
+d["customer"].nunique()      # number of different values
+d["customer"].unique()       # the different values
+
+# clean the text first, otherwise repeats stay hidden
+s = pd.DataFrame({"name": ["Asha", "asha ", "ASHA"]})
+s["name"] = s["name"].str.strip().str.lower()
+s.duplicated().sum()         # 2
+```
+
+- By default `duplicated` compares ALL columns, so a unique id column hides every repeat. Give `subset` the columns that define a repeat.
+- The first row of a group of repeats is `False`; the later ones are `True`.
+
+## Quick reference
+
+| Goal | Code |
+|---|---|
+| blanks per column | `df.isna().sum()` |
+| rows with a blank in a column | `df[df["c"].isna()]` |
+| drop rows with a blank | `df.dropna(subset=["c"])` |
+| keep rows with enough filled boxes | `df.dropna(thresh=n)` |
+| fill with a value | `df["c"].fillna(value)` |
+| fill with mean / median / mode | `fillna(df["c"].mean())`, `.median()`, `.mode()[0]` |
+| fill by group | `fillna(df.groupby("g")["c"].transform("mean"))` |
+| check types | `df.dtypes`, `df.info()` |
+| text to whole numbers | `df["c"].astype(int)` |
+| messy text to numbers | `pd.to_numeric(df["c"], errors="coerce")` |
+| whole numbers with blanks | `df["c"].astype("Int64")` |
+| find repeats | `df.duplicated(subset=[...])` |
+| remove repeats | `df.drop_duplicates(subset=[...])` |
+
+## Remember
+
+- Run `df.isna().sum()` and `df.dtypes` first on any new table.
+- `dropna`, `fillna`, `astype`, `drop_duplicates` return new results; save them back.
+- `subset=` in `dropna`, `duplicated` and `drop_duplicates` limits the check to some columns.
+- Fill number columns with the median or mean, text columns with `"Unknown"` or the mode.
+- `to_numeric(errors="coerce")` turns bad entries into NaN, so you can count and fix them.
+- Clean the text (`.str.strip().str.lower()`, remove symbols) before converting or finding duplicates.
+
+## Watch out
+
+- `df["x"] == np.nan` is always False; use `isna()`.
+- `df.isna.sum()` without `()` gives AttributeError.
+- `df.dropna()` on its own leaves `df` unchanged; save the result.
+- `dropna()` with no `subset` may drop almost every row.
+- `df.fillna(df.mean())` fails when text columns exist; choose the column.
+- `astype(int)` fails on a bad entry (ValueError) and on NaN (IntCastingNaNError).
+- Float to int cuts off the decimals, it does not round.
+- Text that looks like numbers adds up as glued text (`'10203040'`), with no error.
+- `duplicated()` with a unique id column finds nothing; use `subset`.
+- A typo in `subset=[...]` gives KeyError.
+- Only the last line of a cell is shown; wrap the other lines in `print()`.
+
+# Topic 10 — Dates: to_datetime, .dt parts, date maths
+
+## The example tables
+
+```python
+import pandas as pd
+
+t = pd.DataFrame({"trip":   [1, 2, 3, 4, 5, 6],
+                  "start":  ["2026-10-01 09:30", "2026-10-05 18:45", "2026-09-28 07:10",
+                             "2026-10-12 14:00", "2026-09-13 22:15", "2026-11-02 11:20"],
+                  "amount": [500, 300, 450, 800, 250, 600]})
+
+o = pd.DataFrame({"order_id":  [1, 2, 3, 4, 5],
+                  "ordered":   ["2026-10-01", "2026-10-03", "2026-09-25", "2026-10-10", "2026-09-30"],
+                  "delivered": ["2026-10-04", "2026-10-10", "2026-09-27", None, "2026-10-02"],
+                  "amount":    [500, 300, 450, 800, 250]})
+```
+
+## Text to dates: to_datetime
+
+A date read from a CSV is text (`str` / `object`). Convert it to a real date (`datetime64`) so pandas can compare, sort and calculate.
+
+```python
+t["start"] = pd.to_datetime(t["start"])     # save it back
+t.info()                                    # start is now datetime64
+
+t["start"].min()                            # earliest date
+t["start"].max()                            # latest date
+t.sort_values("start")                      # sorted by date
+t[t["start"] > "2026-10-01"]                # filter by date (compare with a plain text date)
+```
+
+- A date with no time shows `00:00:00`.
+- Standard text is year-month-day (`2026-10-05`). For another style give `format`.
+
+```python
+pd.to_datetime("15/10/2026", format="%d/%m/%Y")            # 2026-10-15
+pd.to_datetime("10/05/2026")                               # 2026-10-05 -> read MONTH first
+pd.to_datetime("10/05/2026", format="%d/%m/%Y")            # 2026-05-10 -> day first
+pd.to_datetime(pd.Series(["15/10/2026", "01/09/2026"]), format="%d/%m/%Y")
+pd.to_datetime("15 Oct 2026")                              # pandas reads this by itself
+```
+
+| Code | Meaning | Example |
+|---|---|---|
+| `%d` | day | 15 |
+| `%m` | month number | 10 |
+| `%Y` | year, 4 digits | 2026 |
+| `%y` | year, 2 digits | 26 |
+| `%b` | short month name | Oct |
+| `%B` | full month name | October |
+| `%H:%M` | hour:minute | 14:30 |
+
+Bad dates:
+
+```python
+pd.to_datetime(pd.Series(["2026-10-01", "hello", "2026-10-03"]))                    # ValueError
+pd.to_datetime(pd.Series(["2026-10-01", "hello", "2026-10-03"]), errors="coerce")   # hello -> NaT
+```
+
+- `NaT` is the date version of `NaN`. `isna()`, `dropna()` and `fillna()` work on it.
+
+A date built from separate columns:
+
+```python
+d = pd.DataFrame({"day": [15, 16], "month": [10, 10], "year": [2026, 2026]})
+pd.to_datetime(d)                          # columns must be named year, month, day
+```
+
+## Parts of a date: .dt
+
+The date column must be a real date (`to_datetime` first).
+
+```python
+t["start"].dt.year           # no brackets
+t["start"].dt.month          # month number
+t["start"].dt.day            # day of the month
+t["start"].dt.hour
+t["start"].dt.minute
+t["start"].dt.dayofweek      # Monday = 0 ... Sunday = 6
+t["start"].dt.quarter
+t["start"].dt.dayofyear
+t["start"].dt.day_name()     # with brackets: 'Thursday'
+t["start"].dt.month_name()   # with brackets: 'October'
+```
+
+Save the parts as columns (they become features for ML):
+
+```python
+t["month"] = t["start"].dt.month
+t["weekday"] = t["start"].dt.day_name()
+t["is_weekend"] = t["start"].dt.dayofweek >= 5      # Saturday or Sunday
+```
+
+Filter with a part or a range:
+
+```python
+t[t["start"].dt.month == 10]                                           # October trips
+t[t["start"].dt.hour >= 12]                                            # afternoon and evening
+t[(t["start"] >= "2026-10-01") & (t["start"] < "2026-11-01")]          # a whole month
+t[t["start"].between("2026-09-20", "2026-10-05")]                      # inclusive of both ends
+```
+
+- A text date means midnight at the start of that day, so `between(..., "2026-10-05")` leaves out 5 Oct 18:45.
+- To take a whole month, use `>= first day` and `< first day of next month`.
+
+Group by a part:
+
+```python
+t.groupby("month")["amount"].sum()
+t.groupby(t["start"].dt.month_name())["amount"].sum()      # names sort A to Z, not by calendar
+t["start"].dt.month.value_counts().sort_index()
+```
+
+Dates back to text:
+
+```python
+t["start"].dt.strftime("%d-%m-%Y")       # '01-10-2026'
+t["start"].dt.strftime("%b %Y")          # 'Oct 2026'
+t["start"].dt.normalize()                # same date, time set to 00:00:00
+```
+
+## Date maths
+
+```python
+o["ordered"] = pd.to_datetime(o["ordered"])
+o["delivered"] = pd.to_datetime(o["delivered"])
+
+o["days_taken"] = (o["delivered"] - o["ordered"]).dt.days      # gap in plain days (NaN if NaT)
+o["days_taken"].mean()                                         # NaN is skipped
+o[o["days_taken"] > 3]                                         # slow deliveries
+o[o["delivered"].isna()]                                       # not delivered yet
+
+o["due"] = o["ordered"] + pd.Timedelta(days=7)                 # 7 days later (also hours=, weeks=)
+```
+
+- date minus date gives a `Timedelta` (a gap). `.dt.days` turns it into plain days.
+- `Timedelta` has no months, because months have different lengths.
+
+Group by month with `to_period`:
+
+```python
+o.groupby(o["ordered"].dt.to_period("M"))["amount"].sum()
+o.groupby(o["ordered"].dt.to_period("M"))["amount"].agg(["sum", "count"])
+```
+
+- `to_period("M")` gives labels like `2026-10`, which sort correctly and keep different years apart.
+
+### Optional (use when needed)
+
+```python
+o["ordered"] + pd.DateOffset(months=1)                  # calendar months: 15 Oct -> 15 Nov; 31 Jan -> 28 Feb
+o["ordered"] - pd.DateOffset(months=1)                  # backwards
+today = pd.Timestamp("2026-10-15")                      # a fixed date (pd.Timestamp.today() is the real today)
+(today - o["ordered"]).dt.days                          # days since each order
+o.sort_values("ordered")["ordered"].diff().dt.days      # days since the previous row (after sorting)
+(o["ordered"].max() - o["ordered"].min()).days          # days from first to last
+pd.date_range("2026-10-01", periods=4)                  # a list of dates
+pd.date_range("2026-10-01", "2026-10-05")
+pd.date_range("2026-10-01", periods=3, freq="MS")       # month starts: 1 Oct, 1 Nov, 1 Dec
+```
+
+## Quick reference
+
+| Goal | Code |
+|---|---|
+| text to dates | `df["d"] = pd.to_datetime(df["d"])` |
+| day-first text | `pd.to_datetime(df["d"], format="%d/%m/%Y")` |
+| bad dates to NaT | `pd.to_datetime(df["d"], errors="coerce")` |
+| year / month / day | `df["d"].dt.year`, `.month`, `.day` |
+| weekday name | `df["d"].dt.day_name()` |
+| weekend | `df["d"].dt.dayofweek >= 5` |
+| whole month | `(df["d"] >= "2026-10-01") & (df["d"] < "2026-11-01")` |
+| days between | `(df["d2"] - df["d1"]).dt.days` |
+| add days | `df["d"] + pd.Timedelta(days=7)` |
+| add months | `df["d"] + pd.DateOffset(months=1)` |
+| total per month | `df.groupby(df["d"].dt.to_period("M"))["x"].sum()` |
+| date to text | `df["d"].dt.strftime("%d-%m-%Y")` |
+
+## Remember
+
+- Run `to_datetime` first and save it back; everything else needs real dates.
+- Day-first data needs `format="%d/%m/%Y"`, or pandas reads the month first without any error.
+- `errors="coerce"` makes bad dates `NaT`, which you handle like `NaN`.
+- `.dt.year`, `.month`, `.day`, `.hour`, `.dayofweek` have no brackets; `day_name()` and `month_name()` have brackets.
+- Monday is 0 and Sunday is 6 in `dayofweek`.
+- Date minus date is a gap; use `.dt.days` for plain days.
+- Group by `dt.to_period("M")` when you need months in the right order.
+
+## Watch out
+
+- `.dt` on a text column gives AttributeError.
+- `.dt.month()` with brackets gives TypeError.
+- `(d2 - d1).days` without `.dt` gives AttributeError.
+- `df["d"] + 5` gives TypeError; write `pd.Timedelta(days=5)`.
+- `pd.Timedelta(months=1)` gives ValueError; use `pd.DateOffset(months=1)`.
+- One bad date with no `errors="coerce"` stops `to_datetime` with ValueError.
+- `between` and text dates mean midnight, so the last day's times are left out.
+- Month names sort A to Z, so use the month number or `to_period("M")`.
+- Only the last line of a cell is shown; wrap the other lines in `print()`.
