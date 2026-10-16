@@ -2038,3 +2038,193 @@ pd.date_range("2026-10-01", periods=3, freq="MS")       # month starts: 1 Oct, 1
 - `between` and text dates mean midnight, so the last day's times are left out.
 - Month names sort A to Z, so use the month number or `to_period("M")`.
 - Only the last line of a cell is shown; wrap the other lines in `print()`.
+
+
+# Topic 11 — Read and write: to_csv, read_csv and its options
+
+## The example table
+
+```python
+import pandas as pd
+
+df = pd.DataFrame({"name":   ["Asha", "Ravi", "Meena"],
+                   "city":   ["Indore", None, "Pune"],
+                   "age":    [25, 31, None],
+                   "salary": [50000, 62000, 45000]})
+```
+
+## Save and read back
+
+A table lives only in the notebook's memory. `to_csv` copies it into a file in the notebook's folder; `read_csv` loads the file back into a table.
+
+```python
+df.to_csv("people.csv", index=False)     # save; returns nothing
+back = pd.read_csv("people.csv")         # read it back
+back.equals(df)                          # True
+```
+
+- Always write `index=False`, or the row numbers are saved as a column and come back as `Unnamed: 0`.
+- Missing values are written as empty cells and read back as `NaN`. `na_rep="missing"` writes a word instead.
+- Save only some columns or a sorted table: `df[["name","salary"]].to_csv(...)`, `df.sort_values("salary").to_csv(...)`.
+- Another separator: `to_csv("f.csv", index=False, sep=";")`, and read it back with `sep=";"` too.
+- No header line: `to_csv(..., header=False)`.
+- Where am I? `os.getcwd()`. Does the file exist? `os.path.exists("people.csv")`.
+
+## read_csv options
+
+| Need | Code |
+|---|---|
+| only some columns | `pd.read_csv("f.csv", usecols=["city","amount"])` |
+| only the first n rows | `pd.read_csv("f.csv", nrows=2)` |
+| text column to dates | `pd.read_csv("f.csv", parse_dates=["date"])` |
+| force a type | `pd.read_csv("f.csv", dtype={"id": str})` |
+| a column as row label | `pd.read_csv("f.csv", index_col="id")` |
+| skip junk lines at the top | `pd.read_csv("f.csv", skiprows=1)` |
+| extra words that mean missing | `pd.read_csv("f.csv", na_values=["-","NA_"])` |
+| file has no header line | `pd.read_csv("f.csv", header=None, names=["name","score"])` |
+
+```python
+m = pd.read_csv("messy.csv", skiprows=1, na_values=["-", "NA_"])
+m.dtypes          # score is float64 because NaN is inside
+```
+
+- `NA`, `NaN`, `null` and empty cells already count as missing. `na_values` is only for extra words.
+- A word like `-` in a number column makes the whole column text, so use `na_values`.
+- Ids, phone numbers and pin codes are labels, not numbers: `dtype={"id": str}` keeps `007` as `007`.
+
+## Check after reading
+
+```python
+df = pd.read_csv("orders.csv")
+df.shape            # (rows, columns)
+df.head()           # first rows
+df.info()           # types and non-null counts
+df.isna().sum()     # missing per column
+```
+
+## Other formats (optional)
+
+```python
+orders.to_json("orders.json", orient="records")
+pd.read_json("orders.json")
+
+orders.to_excel("orders.xlsx", index=False)    # needs: pip install openpyxl
+pd.read_excel("orders.xlsx")
+```
+
+## Remember
+
+- Save with `to_csv(..., index=False)`, read with `read_csv`.
+- After every read: `shape`, `head()`, `info()`, `isna().sum()`.
+- Use `parse_dates`, `na_values` and `dtype` to get the right types at read time.
+- A separator used when saving must be used when reading.
+- Use the reader that matches the file: csv, excel, json.
+
+## Watch out
+
+- `df = df.to_csv(...)` makes `df` become `None`, because `to_csv` returns nothing.
+- Forgetting `index=False` gives an `Unnamed: 0` column on the next read.
+- A wrong file name or folder gives FileNotFoundError.
+- A wrong `sep` gives one big column.
+- Forgetting `header=None` on a file with no header makes the first data row the column names.
+- A wrong column name in `usecols` or `parse_dates` gives ValueError.
+- `read_excel` without openpyxl gives ImportError; `read_csv` on an .xlsx file gives garbage or an error.
+- The code creates small CSV files in the notebook folder; delete them or add `*.csv` to `.gitignore` before you commit.
+
+# Topic 12 — Merge: joining two tables
+
+## The example tables
+
+```python
+import pandas as pd
+
+customers = pd.DataFrame({"cust_id": [1, 2, 3, 4],
+                          "name":    ["Asha", "Ravi", "Meena", "Dev"],
+                          "city":    ["Indore", "Pune", "Delhi", "Pune"]})
+
+orders = pd.DataFrame({"order_id": [11, 12, 13, 14, 15],
+                       "cust_id":  [1, 2, 1, 3, 9],
+                       "amount":   [500, 700, 300, 900, 250]})
+```
+
+## Merge on a key
+
+The key is the column that appears in both tables. Merge looks up the key of every row of one table in the other table and joins the matching rows side by side.
+
+```python
+m = pd.merge(orders, customers, on="cust_id")      # or orders.merge(customers, on="cust_id")
+m.shape                                            # (4, 5): orders 5 rows, result 4
+m.groupby("name")["amount"].sum()                  # use columns from both tables
+```
+
+- The default is an inner merge: only keys present in both tables stay.
+- Order 15 (customer 9, not in `customers`) and customer 4 (no orders) disappear, with no error or warning.
+- One customer with 2 orders gives 2 result rows.
+- Merge does not change the original tables; save the result.
+
+## how= : keep unmatched rows
+
+| how | Keeps | Unmatched side |
+|---|---|---|
+| `"inner"` (default) | keys in both tables | none |
+| `"left"` | all rows of the first table | NaN |
+| `"right"` | all rows of the second table | NaN |
+| `"outer"` | all rows of both | NaN |
+
+```python
+left = pd.merge(orders, customers, on="cust_id", how="left")
+left[left["name"].isna()]                           # orders with no customer
+nobuy = pd.merge(customers, orders, on="cust_id", how="left")
+nobuy[nobuy["order_id"].isna()]["name"].tolist()    # customers who never ordered
+chk = pd.merge(orders, customers, on="cust_id", how="outer", indicator=True)
+chk["_merge"].value_counts()                        # both / left_only / right_only
+left["name"] = left["name"].fillna("unknown")       # Topic 9 tools for the gaps
+```
+
+- `left` is the one used most: keep every row of the main table and add information from the other.
+- Int columns become float where NaN appears.
+
+## Different key names and same column names
+
+```python
+pd.merge(orders, people, left_on="cid", right_on="cust_id")        # keys have different names
+m = m.drop(columns="cust_id")                                      # both key columns stay; drop one
+
+pd.merge(a, b, on="id")                                            # same name in another column: city_x, city_y
+pd.merge(a, b, on="id", suffixes=("_home", "_work"))               # choose the endings
+pd.merge(a, b[["id", "bonus"]], on="id")                           # or bring only the columns you need
+```
+
+## Duplicate keys: the silent trap
+
+If a key appears twice in one table, every matching row of the other table is copied twice. There is no error, and sums and means become wrong.
+
+```python
+c["cust_id"].is_unique                              # False -> warning sign
+pd.merge(o, c, on="cust_id", validate="m:1")        # MergeError if c has duplicate keys
+c2 = c.drop_duplicates("cust_id")                   # keep the first row of each key
+pd.merge(o, c2, on="cust_id", validate="m:1")
+```
+
+- `validate="m:1"` means many rows on the left, one row per key on the right.
+- Safe habit: check `is_unique`, compare `shape` and `sum` before and after.
+
+## Remember
+
+- `pd.merge(left, right, on="key", how="...")`; the key must exist in both tables.
+- Default is inner; it silently drops rows, so check `shape`.
+- "Left" means the table written first.
+- `indicator=True` shows where each row came from.
+- Use `left_on` / `right_on` for different key names; use `suffixes` for repeated names.
+- Check the key is unique where it should be; use `validate="m:1"`.
+- Handle the NaN after merge with `fillna` / `dropna`.
+
+## Watch out
+
+- `on="x"` where x is missing in one table gives KeyError.
+- A table with no common column and no `on` gives MergeError.
+- `how="leftt"` (a wrong word) gives ValueError.
+- Duplicate keys change totals with no warning.
+- `city_x` / `city_y` columns mean a repeated name was not handled.
+- Both key columns stay with `left_on` / `right_on`; drop one.
+- Swapping the two tables changes what `left` and `right` keep.
